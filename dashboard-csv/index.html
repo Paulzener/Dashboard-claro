@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Actividades</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- SheetJS: Soporte nativo para Excel (.xlsx) y CSV -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Chart.js: Gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>Dashboard de Actividades</h1>
+        <p>Carga un archivo Excel (.xlsx) o CSV para visualizar los datos</p>
+    </header>
+
+    <main>
+        <!-- CARGA ARCHIVO -->
+        <section class="upload-section">
+            <label for="excelFile" class="upload-button">
+                📁 Seleccionar Excel / CSV
+            </label>
+            <input type="file" id="excelFile" accept=".xlsx, .xls, .csv">
+            <span id="fileName">Ningún archivo seleccionado</span>
+        </section>
+
+        <!-- FILTROS -->
+        <section id="filters" class="filters hidden">
+            <div>
+                <label>Estado</label>
+                <select id="filterEstado"><option value="">Todos</option></select>
+            </div>
+            <div>
+                <label>Tipo de actividad</label>
+                <select id="filterActividad"><option value="">Todos</option></select>
+            </div>
+            <div>
+                <label>Ciudad</label>
+                <select id="filterCiudad"><option value="">Todas</option></select>
+            </div>
+            <div>
+                <label>Tipo de red</label>
+                <select id="filterRed"><option value="">Todas</option></select>
+            </div>
+            <button id="clearFilters">Limpiar filtros</button>
+        </section>
+
+        <!-- KPIs -->
+        <section id="kpis" class="kpis hidden">
+            <div class="kpi"><span>Total órdenes</span><strong id="totalOrdenes">0</strong></div>
+            <div class="kpi"><span>Completadas</span><strong id="completadas">0</strong></div>
+            <div class="kpi"><span>No realizadas</span><strong id="noRealizadas">0</strong></div>
+            <div class="kpi"><span>% Efectividad</span><strong id="efectividad">0%</strong></div>
+            <div class="kpi"><span>RGU Total</span><strong id="rguTotal">0</strong></div>
+            <div class="kpi"><span>Extensores</span><strong id="extensores">0</strong></div>
+        </section>
+
+        <!-- GRÁFICOS -->
+        <section id="charts" class="charts hidden">
+            <div class="chart-container"><h2>Estado</h2><canvas id="estadoChart"></canvas></div>
+            <div class="chart-container"><h2>Tipo de Actividad</h2><canvas id="actividadChart"></canvas></div>
+            <div class="chart-container"><h2>Tipo de Red</h2><canvas id="redChart"></canvas></div>
+            <div class="chart-container"><h2>Órdenes por Ciudad</h2><canvas id="ciudadChart"></canvas></div>
+        </section>
+
+        <!-- TABLA -->
+        <section id="tableSection" class="table-section hidden">
+            <h2>Detalle de actividades</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Orden</th>
+                            <th>Técnico</th>
+                            <th>Actividad</th>
+                            <th>Ciudad</th>
+                            <th>Zona trabajo</th>
+                            <th>Inicio</th>
+                            <th>Fin</th>
+                            <th>Estado</th>
+                            <th>Tipo Red</th>
+                            <th>RGU</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTable"></tbody>
+                </table>
+            </div>
+            <div id="rowCount"></div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
