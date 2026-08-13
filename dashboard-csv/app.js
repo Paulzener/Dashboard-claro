@@ -1,241 +1,46 @@
-let allData = [];
+// ==========================================
+// VARIABLES GLOBALES Y CONFIGURACIÓN INICIAL
+// ==========================================
+let rawExcelData = [];
 let filteredData = [];
 
-let estadoChart;
-let actividadChart;
-let redChart;
-let ciudadChart;
+// Instancias globales para destruir y redibujar gráficos
+let estadoChartInstance = null;
+let actividadChartInstance = null;
+let duracionChartInstance = null;
 
-// REGISTRAR EL PLUGIN DE ETIQUETAS (Obligatorio para Chart.js)
-if (typeof ChartDataLabels !== "undefined") {
+// Registrar plugin de datalabels si está presente
+if (typeof ChartDataLabels !== 'undefined') {
     Chart.register(ChartDataLabels);
 }
 
-// ==========================================
-// CARGAR ARCHIVO EXCEL O CSV
-// ==========================================
-document.getElementById("excelFile").addEventListener("change", function (event) {
-    const file = event.target.files[0];
-    if (!file) return;
+document.addEventListener("DOMContentLoaded", () => {
+    const excelInput = document.getElementById("excelFile");
+    if (excelInput) {
+        excelInput.addEventListener("change", cargarArchivoExcel);
+    }
 
-    document.getElementById("fileName").textContent = file.name;
-
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        try {
-            const data = new Uint8Array(e.target.result);
-            // cellDates: true permite parsear fechas nativas de Excel automáticamente
-            const workbook = XLSX.read(data, { type: "array", cellDates: true });
-
-            const firstSheet = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheet];
-
-            allData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-            prepararDatos();
-            mostrarDashboard();
-        } catch (error) {
-            console.error("Error al procesar el archivo:", error);
-            alert("Ocurrió un error al leer la planilla. Asegúrate de que sea un archivo Excel (.xlsx) o CSV válido.");
-        }
-    };
-    reader.readAsArrayBuffer(file);
+    // Eventos para filtros
+    document.getElementById("filterEstado")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("filterActividad")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("filterCiudad")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("filterMes")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("clearFilters")?.addEventListener("click", limpiarFiltros);
 });
 
 // ==========================================
-// PREPARAR DATOS
+// PARSER Y UTILIDADES DE FECHA Y HORA
 // ==========================================
-function prepararDatos() {
-    allData = allData.map(row => ({
-        ...row,
-        Cantidad_Exte: Number(row.Cantidad_Exte || row.Cantidad_Extensores) || 0,
-        Cantidad_Planes: Number(row.Cantidad_Planes || row.Cantidad_Plan) || 0,
-        Cantidad_DBox: Number(row.Cantidad_DBox || row.Cantidad_DBc) || 0,
-        RGU: Number(row.RGU) || 0
-    }));
 
-    filteredData = [...allData];
-    cargarFiltros();
-}
-
-// ==========================================
-// MOSTRAR DASHBOARD
-// ==========================================
-function mostrarDashboard() {
-    document.getElementById("filters").classList.remove("hidden");
-    document.getElementById("kpis").classList.remove("hidden");
-    document.getElementById("charts").classList.remove("hidden");
-    document.getElementById("tableSection").classList.remove("hidden");
-
-    actualizarDashboard();
-}
-
-// ==========================================
-// FILTROS
-// ==========================================
-function cargarFiltros() {
-    llenarSelect("filterEstado", "Estado");
-    llenarSelect("filterActividad", "Tipo_de_Activi");
-    llenarSelect("filterCiudad", "Ciudad");
-}
-
-function llenarSelect(selectId, column) {
-    const select = document.getElementById(selectId);
-
-    const valores = [
-        ...new Set(
-            allData
-                .map(row => row[column] || row[column + "dad"] || row[column + "dad_de_Actividad"])
-                .filter(value => value !== undefined && value !== null && value !== "")
-        )
-    ].sort();
-
-    select.innerHTML = `<option value="">Todos</option>`;
-
-    valores.forEach(value => {
-        const option = document.createElement("option");
-        option.value = value;
-        option.textContent = value;
-        select.appendChild(option);
-    });
-}
-
-// Escuchadores de eventos para filtros
-document.getElementById("filterEstado").addEventListener("change", aplicarFiltros);
-document.getElementById("filterActividad").addEventListener("change", aplicarFiltros);
-document.getElementById("filterCiudad").addEventListener("change", aplicarFiltros);
-
-// Escuchador dinámico por si agregaste el <select id="filterMes"> en tu HTML
-const selectMes = document.getElementById("filterMes");
-if (selectMes) {
-    selectMes.addEventListener("change", aplicarFiltros);
-}
-
-function aplicarFiltros() {
-    const estado = document.getElementById("filterEstado").value;
-    const actividad = document.getElementById("filterActividad").value;
-    const ciudad = document.getElementById("filterCiudad").value;
-
-    const elMes = document.getElementById("filterMes");
-    const mesSeleccionado = elMes ? elMes.value : "";
-
-    filteredData = allData.filter(row => {
-        const valActividad = row.Tipo_de_Activi || row.Tipo_de_Actividad;
-
-        // Filtro por mes si está seleccionado
-        const fechaObj = obtenerFechaObjeto(row.Inicio || row.Fecha || row.FIN || row.Fin);
-        const coincidenMes = mesSeleccionado === "" || (fechaObj && fechaObj.getMonth() === parseInt(mesSeleccionado));
-
-        return (
-            (!estado || row.Estado === estado) &&
-            (!actividad || valActividad === actividad) &&
-            (!ciudad || row.Ciudad === ciudad) &&
-            coincidenMes
-        );
-    });
-
-    actualizarDashboard();
-}
-
-// Limpiar Filtros
-document.getElementById("clearFilters").addEventListener("click", function () {
-    document.getElementById("filterEstado").value = "";
-    document.getElementById("filterActividad").value = "";
-    document.getElementById("filterCiudad").value = "";
-
-    const elMes = document.getElementById("filterMes");
-    if (elMes) elMes.value = "";
-
-    filteredData = [...allData];
-    actualizarDashboard();
-});
-
-// ==========================================
-// ACTUALIZAR DASHBOARD
-// ==========================================
-function actualizarDashboard() {
-    actualizarKPIs();
-    actualizarTabla();
-    actualizarGraficos();
-}
-
-// ==========================================
-// KPIs
-// ==========================================
-function actualizarKPIs() {
-    const total = filteredData.length;
-    const completadas = filteredData.filter(row => row.Estado === "Completado").length;
-    const noRealizadas = filteredData.filter(row => row.Estado === "No Realizada" || row.Estado === "No realizada").length;
-    const efectividad = total > 0 ? ((completadas / total) * 100).toFixed(1) : 0;
-
-    const rgu = filteredData.reduce((acc, row) => acc + row.RGU, 0);
-    const extensores = filteredData.reduce((acc, row) => acc + row.Cantidad_Exte, 0);
-
-    document.getElementById("totalOrdenes").textContent = total.toLocaleString();
-    document.getElementById("completadas").textContent = completadas.toLocaleString();
-    document.getElementById("noRealizadas").textContent = noRealizadas.toLocaleString();
-    document.getElementById("efectividad").textContent = efectividad + "%";
-    document.getElementById("rguTotal").textContent = rgu.toFixed(2);
-    document.getElementById("extensores").textContent = extensores.toLocaleString();
-}
-
-// ==========================================
-// TABLA (Limitada a 100 registros)
-// ==========================================
-function actualizarTabla() {
-    const tbody = document.getElementById("dataTable");
-    tbody.innerHTML = "";
-
-    const filasAMostrar = filteredData.slice(0, 100);
-
-    filasAMostrar.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${row.Orden_de_Tra || row.Orden_de_Trabajo || ""}</td>
-            <td>${row.Tecnico || ""}</td>
-            <td>${row.Tipo_de_Activi || row.Tipo_de_Actividad || ""}</td>
-            <td>${row.Ciudad || ""}</td>
-            <td>${row.Zona_de_traba || row.Zona_de_trabajo || ""}</td>
-            <td>${row.Inicio || ""}</td>
-            <td>${row.Fin || ""}</td>
-            <td>${row.Estado || ""}</td>
-            <td>${row.Tipo_Red || ""}</td>
-            <td>${row.RGU || 0}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    const infoTexto = filteredData.length > 100
-        ? `Mostrando los primeros 100 registros de un total de ${filteredData.length}`
-        : `Mostrando ${filteredData.length} registros`;
-
-    document.getElementById("rowCount").textContent = infoTexto;
-}
-
-// ==========================================
-// AUXILIARES
-// ==========================================
-function contarPorColumna(data, column, colAlt) {
-    const resultado = {};
-    data.forEach(row => {
-        const valor = row[column] || row[colAlt] || "Sin información";
-        resultado[valor] = (resultado[valor] || 0) + 1;
-    });
-    return resultado;
-}
-
-// Convertidor de Fechas ajustado a la estructura de tu planilla
 function obtenerFechaObjeto(item) {
     if (!item) return null;
 
-    // 1. Priorizar la columna 'Origen' (que tiene la fecha DD-MM-YYYY)
-    // Si no existe, intenta con Fecha, Inicio, etc.
     let rawFecha = item.Origen || item.Fecha || item.FIN || item.Fin || item.Inicio;
     if (!rawFecha) return null;
 
     if (rawFecha instanceof Date) return rawFecha;
 
-    // 2. Si viene como número serial de Excel
+    // Número serial de Excel
     if (typeof rawFecha === 'number') {
         return new Date(Math.round((rawFecha - 25569) * 86400 * 1000));
     }
@@ -243,23 +48,16 @@ function obtenerFechaObjeto(item) {
     if (typeof rawFecha === 'string') {
         let str = rawFecha.trim();
 
-        // 3. Manejar formato "DD-MM-YYYY" o "DD/MM/YYYY" (Ej: "02-01-2026")
+        // Si es tipo "02-01-2026" o "02/01/2026"
         const partes = str.split(/[\/\-\s]/);
         if (partes.length >= 3) {
             const dia = parseInt(partes[0], 10);
-            const mes = parseInt(partes[1], 10) - 1; // En JS los meses van de 0 (Enero) a 11 (Diciembre)
+            const mes = parseInt(partes[1], 10) - 1;
             const anio = parseInt(partes[2], 10);
 
-            // Validar que sean números válidos
             if (!isNaN(dia) && !isNaN(mes) && !isNaN(anio)) {
-                // Si el año viene de 4 dígitos al final (Ej: 02-01-2026)
-                if (partes[2].length === 4) {
-                    return new Date(anio, mes, dia);
-                }
-                // Si el año viene al principio YYYY-MM-DD
-                if (partes[0].length === 4) {
-                    return new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
-                }
+                if (partes[2].length === 4) return new Date(anio, mes, dia);
+                if (partes[0].length === 4) return new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
             }
         }
     }
@@ -268,212 +66,317 @@ function obtenerFechaObjeto(item) {
     return isNaN(d.getTime()) ? null : d;
 }
 
-function calcularPorcentajeMensual(data) {
-    const ordenMeses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+function calcularDiferenciaMinutos(horaInicio, horaFin) {
+    if (!horaInicio || !horaFin) return null;
 
-    // 1. Inicializar los 12 meses
-    const agruparPorMes = {};
-    ordenMeses.forEach(mes => {
-        agruparPorMes[mes] = { total: 0, completados: 0 };
-    });
+    const [h1, m1] = horaInicio.toString().split(':').map(Number);
+    const [h2, m2] = horaFin.toString().split(':').map(Number);
 
-    // 2. Agrupar enviando todo el objeto 'item' a obtenerFechaObjeto
-    data.forEach(item => {
-        const fechaObj = obtenerFechaObjeto(item); // <-- Le pasamos el objeto completo
-        if (!fechaObj) return;
+    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return null;
 
-        const nombreMes = ordenMeses[fechaObj.getMonth()];
+    let inicioMin = h1 * 60 + m1;
+    let finMin = h2 * 60 + m2;
+    let dif = finMin - inicioMin;
 
-        if (agruparPorMes[nombreMes]) {
-            agruparPorMes[nombreMes].total++;
-            if (item.Estado === "Completado") {
-                agruparPorMes[nombreMes].completados++;
-            }
-        }
-    });
-
-    // 3. Generar array con los 12 meses
-    const porcentajesArr = ordenMeses.map(mes => {
-        const datosMes = agruparPorMes[mes];
-        return datosMes.total > 0 ? (datosMes.completados / datosMes.total) * 100 : null;
-    });
-
-    return {
-        meses: ordenMeses,
-        porcentajes: porcentajesArr
-    };
+    if (dif < 0) dif += 24 * 60; // Cambio de día
+    return dif;
 }
 
 // ==========================================
-// GRÁFICOS
+// CARGA Y PROCESAMIENTO DE EXCEL
 // ==========================================
+
+function cargarArchivoExcel(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    document.getElementById("fileName").innerText = file.name;
+
+    const reader = new FileReader();
+    reader.onload = function (evt) {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheet];
+
+        rawExcelData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        filteredData = [...rawExcelData];
+
+        poblarFiltros(rawExcelData);
+        mostrarSecciones();
+        actualizarDashboard();
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+function mostrarSecciones() {
+    document.getElementById("filters")?.classList.remove("hidden");
+    document.getElementById("kpis")?.classList.remove("hidden");
+    document.getElementById("charts")?.classList.remove("hidden");
+    document.getElementById("tableSection")?.classList.remove("hidden");
+}
+
+// ==========================================
+// FILTROS Y KPIS
+// ==========================================
+
+function poblarFiltros(data) {
+    const estados = new Set();
+    const actividades = new Set();
+    const ciudades = new Set();
+
+    data.forEach(item => {
+        if (item.Estado) estados.add(item.Estado);
+        if (item.Tipo_de_Activi || item.Tipo_de_Actividad) actividades.add(item.Tipo_de_Activi || item.Tipo_de_Actividad);
+        if (item.Ciudad) ciudades.add(item.Ciudad);
+    });
+
+    llenarSelect("filterEstado", estados);
+    llenarSelect("filterActividad", actividades);
+    llenarSelect("filterCiudad", ciudades);
+}
+
+function llenarSelect(id, setValores) {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const optionDefault = select.options[0];
+    select.innerHTML = "";
+    select.appendChild(optionDefault);
+
+    Array.from(setValores).sort().forEach(val => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = val;
+        select.appendChild(opt);
+    });
+}
+
+function aplicarFiltros() {
+    const valEstado = document.getElementById("filterEstado")?.value;
+    const valActividad = document.getElementById("filterActividad")?.value;
+    const valCiudad = document.getElementById("filterCiudad")?.value;
+    const valMes = document.getElementById("filterMes")?.value;
+
+    filteredData = rawExcelData.filter(item => {
+        const estadoOk = !valEstado || item.Estado === valEstado;
+        const actOk = !valActividad || (item.Tipo_de_Activi || item.Tipo_de_Actividad) === valActividad;
+        const ciudadOk = !valCiudad || item.Ciudad === valCiudad;
+
+        let mesOk = true;
+        if (valMes !== "") {
+            const fechaObj = obtenerFechaObjeto(item);
+            mesOk = fechaObj && fechaObj.getMonth() === parseInt(valMes, 10);
+        }
+
+        return estadoOk && actOk && ciudadOk && mesOk;
+    });
+
+    actualizarDashboard();
+}
+
+function limpiarFiltros() {
+    document.getElementById("filterEstado").value = "";
+    document.getElementById("filterActividad").value = "";
+    document.getElementById("filterCiudad").value = "";
+    document.getElementById("filterMes").value = "";
+    filteredData = [...rawExcelData];
+    actualizarDashboard();
+}
+
+function actualizarDashboard() {
+    actualizarKPIs();
+    renderizarTabla();
+    actualizarGraficos();
+}
+
+function actualizarKPIs() {
+    const total = filteredData.length;
+    let completadas = 0;
+    let noRealizadas = 0;
+    let rguTotal = 0;
+    let extensores = 0;
+
+    filteredData.forEach(item => {
+        if (item.Estado === "Completado") completadas++;
+        if (item.Estado === "No Realizada") noRealizadas++;
+        rguTotal += Number(item.RGU) || 0;
+        extensores += (Number(item.Cantidad_Exte) || 0) + (Number(item.Cantidad_Plar) || 0);
+    });
+
+    const efectividadVal = completadas + noRealizadas > 0
+        ? ((completadas / (completadas + noRealizadas)) * 100).toFixed(1) + "%"
+        : "0%";
+
+    document.getElementById("totalOrdenes").innerText = total;
+    document.getElementById("completadas").innerText = completadas;
+    document.getElementById("noRealizadas").innerText = noRealizadas;
+    document.getElementById("efectividad").innerText = efectividadVal;
+    document.getElementById("rguTotal").innerText = rguTotal.toFixed(1);
+    document.getElementById("extensores").innerText = extensores;
+}
+
+// ==========================================
+// RENDERIZADO DE TABLA DE DETALLE
+// ==========================================
+
+function renderizarTabla() {
+    const tbody = document.getElementById("dataTable");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    // Mostrar primeras 100 filas para rendimiento
+    const limiteData = filteredData.slice(0, 100);
+
+    limiteData.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${item.Orden_de_Tra || item.Nro_Orden || '-'}</td>
+            <td>${item.Tecnico || '-'}</td>
+            <td>${item.Tipo_de_Activi || item.Tipo_de_Actividad || '-'}</td>
+            <td>${item.Ciudad || '-'}</td>
+            <td>${item.Zona_de_traba || item.Zona || '-'}</td>
+            <td>${item.Inicio || '-'}</td>
+            <td>${item.Fin || item.FIN || '-'}</td>
+            <td>${item.Estado || '-'}</td>
+            <td>${item.Tipo_Red || '-'}</td>
+            <td>${item.RGU || '0'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById("rowCount").innerText = `Mostrando ${limiteData.length} de ${filteredData.length} registros`;
+}
+
+// ==========================================
+// RENDERIZADO DE LOS 3 GRÁFICOS
+// ==========================================
+
 function actualizarGraficos() {
-    crearGraficoEstado();
-    crearGraficoActividad();
-    crearGraficoCiudad();
+    crearGraficoProduccion();
+    crearGraficoRGU();
     crearGraficoDuracion();
 }
 
-// ------------------------------------------
-// 1 - GRÁFICO DE LÍNEAS (PRODUCCIÓN GENERAL MENSUAL)
-// ------------------------------------------
-function crearGraficoEstado() {
-    const produccionPorMes = calcularPorcentajeMensual(filteredData);
+const ordenMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-    const ctx = document.getElementById("estadoChart").getContext('2d');
+// --- GRÁFICO 1: PRODUCCIÓN GENERAL MENSUAL ---
+function crearGraficoProduccion() {
+    const agrupar = {};
+    ordenMeses.forEach(m => agrupar[m] = { completados: 0, noRealizadas: 0 });
 
-    if (estadoChart) estadoChart.destroy();
+    filteredData.forEach(item => {
+        const f = obtenerFechaObjeto(item);
+        if (!f) return;
+        const mNom = ordenMeses[f.getMonth()];
+        if (item.Estado === "Completado") agrupar[mNom].completados++;
+        if (item.Estado === "No Realizada") agrupar[mNom].noRealizadas++;
+    });
 
-    // Obtener valores válidos para calcular la escala
-    const valoresValidos = produccionPorMes.porcentajes.filter(v => v !== null);
-    const minVal = valoresValidos.length > 0 ? Math.min(...valoresValidos) : 0;
+    const porcentajes = ordenMeses.map(m => {
+        const tot = agrupar[m].completados + agrupar[m].noRealizadas;
+        return tot > 0 ? Number(((agrupar[m].completados / tot) * 100).toFixed(1)) : null;
+    });
 
-    estadoChart = new Chart(ctx, {
+    const canvas = document.getElementById("estadoChart");
+    if (!canvas) return;
+    if (estadoChartInstance) estadoChartInstance.destroy();
+
+    estadoChartInstance = new Chart(canvas.getContext("2d"), {
         type: "line",
         data: {
-            labels: produccionPorMes.meses,
+            labels: ordenMeses,
             datasets: [{
-                label: 'Producción General',
-                data: produccionPorMes.porcentajes,
+                label: "% Efectividad",
+                data: porcentajes,
                 borderColor: "#1d2a57",
-                backgroundColor: "transparent",
-                borderWidth: 3,
-                tension: 0.4,
-                spanGaps: true, // Conecta los puntos ignorando los null entre meses
+                backgroundColor: "#1d2a57",
+                borderWidth: 2.5,
+                tension: 0.2,
+                spanGaps: true,
                 pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBackgroundColor: "#1d2a57"
+                datalabels: {
+                    align: 'top',
+                    anchor: 'end',
+                    offset: 4,
+                    color: '#333333',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: v => v !== null ? v.toString().replace('.', ',') + '%' : ''
+                }
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { top: 25, right: 15, left: 15, bottom: 10 }
+                padding: { top: 25, bottom: 15, left: 15, right: 15 } // Más espacio superior
             },
-            plugins: {
-                legend: { display: false },
-                datalabels: {
-                    display: function (context) {
-                        return context.dataset.data[context.dataIndex] !== null;
-                    },
-                    align: 'top',
-                    anchor: 'end',
-                    offset: 6,
-                    color: '#1d2a57',
-                    font: { size: 12, weight: 'bold' },
-                    formatter: function (value) {
-                        return value !== null ? value.toFixed(1) + ' %' : '';
-                    }
-                },
-                title: {
-                    display: true,
-                    text: 'Producción General por Mes',
-                    color: 'white',
-                    backgroundColor: '#1d2a57',
-                    font: { size: 16, weight: 'bold' },
-                    padding: { top: 10, bottom: 10 },
-                    borderRadius: 10
-                }
-            },
+            plugins: { legend: { display: false } },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#1d2a57', font: { size: 12, weight: '500' } }
+                    ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
                 },
                 y: {
                     display: false,
-                    min: Math.max(0, minVal - 15),
-                    max: 110
+                    min: 50,  // <-- Al poner mínimo 50%, la curva sube y no choca con el eje X
+                    max: 100
                 }
             }
         }
     });
-
-    const container = document.getElementById("estadoChart").parentElement;
-    container.style.borderRadius = "15px";
-    container.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
-    container.style.padding = "15px";
-    container.style.backgroundColor = "white";
 }
-// ------------------------------------------
-// 2 - GRÁFICO DE PROMEDIO GENERAL HISTORICO (RGU)
-// ------------------------------------------}
 
-function calcularPromedioMensual(data) {
-    const ordenMeses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+// --- GRÁFICO 2: PROMEDIO GENERAL HISTÓRICO ---
+function crearGraficoRGU() {
+    const agrupar = {};
+    ordenMeses.forEach(m => agrupar[m] = { sumaRGU: 0, completados: 0 });
 
-    const agruparPorMes = {};
-    ordenMeses.forEach(mes => {
-        agruparPorMes[mes] = { sumaRGU: 0, ordenesCompletadas: 0 };
-    });
+    filteredData.forEach(item => {
+        const f = obtenerFechaObjeto(item);
+        if (!f) return;
+        const mNom = ordenMeses[f.getMonth()];
 
-    data.forEach(item => {
-        const fechaObj = obtenerFechaObjeto(item);
-        if (!fechaObj) return;
-
-        const nombreMes = ordenMeses[fechaObj.getMonth()];
-
-        // FILTRO CLAVE: Solo tomar en cuenta órdenes COMPLETADAS
-        if (agruparPorMes[nombreMes] && item.Estado === "Completado") {
-            agruparPorMes[nombreMes].sumaRGU += Number(item.RGU) || 0;
-            agruparPorMes[nombreMes].ordenesCompletadas++;
+        if (agrupar[mNom] && item.Estado === "Completado") {
+            agrupar[mNom].sumaRGU += Number(item.RGU) || 0;
+            agrupar[mNom].completados++;
         }
     });
 
-    // RGU Promedio Real = Suma de RGU / Órdenes Completadas
-    const promediosArr = ordenMeses.map(mes => {
-        const datosMes = agruparPorMes[mes];
-        if (datosMes.ordenesCompletadas > 0) {
-            return Number((datosMes.sumaRGU / datosMes.ordenesCompletadas).toFixed(1));
-        }
-        return null;
+    const promedios = ordenMeses.map(m => {
+        return agrupar[m].completados > 0
+            ? Number((agrupar[m].sumaRGU / agrupar[m].completados).toFixed(1))
+            : null;
     });
 
-    return {
-        meses: ordenMeses,
-        promedios: promediosArr
-    };
-}
-
-function crearGraficoActividad() {
-    const datosPromedio = calcularPromedioMensual(filteredData);
-
-    // Meta fija (Ajusta el 2.3 por el valor meta que desees)
     const VALOR_META = 2.0;
-    const metaArray = datosPromedio.promedios.map(val => val !== null ? VALOR_META : null);
+    const metaArray = promedios.map(v => v !== null ? VALOR_META : null);
 
     const canvas = document.getElementById("actividadChart");
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if (actividadChartInstance) actividadChartInstance.destroy();
 
-    if (actividadChart) actividadChart.destroy();
-
-    actividadChart = new Chart(ctx, {
+    actividadChartInstance = new Chart(canvas.getContext("2d"), {
         type: "line",
         data: {
-            labels: datosPromedio.meses,
+            labels: ordenMeses,
             datasets: [
                 {
                     label: 'Promedio General',
-                    data: datosPromedio.promedios,
+                    data: promedios,
                     borderColor: "#1d2a57",
                     backgroundColor: "#1d2a57",
                     borderWidth: 2.5,
                     tension: 0.2,
                     spanGaps: true,
                     pointRadius: 4,
-                    pointHoverRadius: 6,
-                    // Muestra el número formateado con coma debajo del punto (ej: 2,1)
                     datalabels: {
-                        align: 'bottom',
-                        anchor: 'start',
+                        align: 'top',
+                        anchor: 'end',
                         offset: 4,
                         color: '#555555',
-                        font: { size: 11, weight: 'bold' },
-                        formatter: function (value) {
-                            return value !== null ? value.toString().replace('.', ',') : '';
-                        }
+                        font: { weight: 'bold', size: 10 },
+                        formatter: v => v !== null ? v.toString().replace('.', ',') : ''
                     }
                 },
                 {
@@ -481,11 +384,9 @@ function crearGraficoActividad() {
                     data: metaArray,
                     borderColor: "#facc15",
                     backgroundColor: "#facc15",
-                    borderWidth: 2.5,
-                    tension: 0,
+                    borderWidth: 1,
                     spanGaps: true,
                     pointRadius: 4,
-                    pointHoverRadius: 6,
                     datalabels: { display: false }
                 }
             ]
@@ -494,217 +395,151 @@ function crearGraficoActividad() {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { top: 15, right: 15, left: 15, bottom: 15 }
+                padding: { top: 25, bottom: 15, left: 15, right: 15 }
             },
             plugins: {
                 legend: {
                     display: true,
                     position: 'bottom',
-                    labels: {
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        padding: 15,
-                        color: '#333333',
-                        font: { size: 12, weight: 'bold' }
-                    }
-                },
-                title: {
-                    display: true,
-                    text: 'Promedio general histórico',
-                    color: 'white',
-                    backgroundColor: '#1d2a57',
-                    font: { size: 15, weight: 'bold' },
-                    padding: { top: 8, bottom: 8 },
-                    borderRadius: 8
+                    labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8 }
                 }
             },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#666666', font: { size: 11 } }
+                    ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
                 },
                 y: {
                     display: false,
-                    min: 0
+                    min: 0,
+                    max: 3.5 // <-- Da techo suficiente para que la meta (2.3) y los datos no se peguen arriba
                 }
             }
         }
     });
-
-    const container = canvas.parentElement;
-    container.style.borderRadius = "15px";
-    container.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
-    container.style.padding = "15px";
-    container.style.backgroundColor = "white";
 }
 
-// ------------------------------------------
-// 3 - GRÁFICO DE INICIO Y FIN (PROMEDIO)
-// ------------------------------------------}
-// Función auxiliar para convertir "HH:MM" a minutos totales
-function calcularDiferenciaMinutos(horaInicio, horaFin) {
-    if (!horaInicio || !horaFin) return null;
-
-    // Convertir cadenas tipo "15:49"
-    const [h1, m1] = horaInicio.toString().split(':').map(Number);
-    const [h2, m2] = horaFin.toString().split(':').map(Number);
-
-    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return null;
-
-    const inicioMinutos = h1 * 60 + m1;
-    const finMinutos = h2 * 60 + m2;
-
-    let diferencia = finMinutos - inicioMinutos;
-
-    // Si la atención terminó al día siguiente (ej: empezó 23:30 y terminó 00:15)
-    if (diferencia < 0) {
-        diferencia += 24 * 60;
-    }
-
-    return diferencia;
-}
-
-// ==========================================
-// TERCER GRÁFICO: DURACIÓN PROMEDIO POR MES
-// ==========================================
-
-function calcularDuracionPromedioMensual(data) {
-    const ordenMeses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-    
-    const agruparPorMes = {};
-    ordenMeses.forEach(mes => {
-        agruparPorMes[mes] = { sumaMinutos: 0, totalOrdenes: 0 };
-    });
-
-    data.forEach(item => {
-        const fechaObj = obtenerFechaObjeto(item);
-        if (!fechaObj) return;
-
-        const nombreMes = ordenMeses[fechaObj.getMonth()];
-
-        // Tomar las columnas Inicio y Fin del Excel
-        const inicio = item.Inicio;
-        const fin = item.Fin || item.FIN;
-
-        const minutosAtencion = calcularDiferenciaMinutos(inicio, fin);
-
-        // Consideramos solo atenciones con tiempo válido (mayor a 0 y menor a 12 horas para descartar errores)
-        if (agruparPorMes[nombreMes] && minutosAtencion !== null && minutosAtencion > 0 && minutosAtencion < 720) {
-            agruparPorMes[nombreMes].sumaMinutos += minutosAtencion;
-            agruparPorMes[nombreMes].totalOrdenes++;
-        }
-    });
-
-    // Calcular promedio en minutos por mes
-    const promediosArr = ordenMeses.map(mes => {
-        const datosMes = agruparPorMes[mes];
-        if (datosMes.totalOrdenes > 0) {
-            return Math.round(datosMes.sumaMinutos / datosMes.totalOrdenes); // Devuelve minutos enteros (ej: 27)
-        }
-        return null;
-    });
-
-    return {
-        meses: ordenMeses,
-        promedios: promediosArr
-    };
-}
-
+// --- GRÁFICO 3: DURACIÓN PROMEDIO POR MES ---
 function crearGraficoDuracion() {
-    const datosDuracion = calcularDuracionPromedioMensual(filteredData);
-    
-    // Suponiendo un gráfico ID "duracionChart" en tu HTML
+    const agrupar = {};
+    ordenMeses.forEach(m => agrupar[m] = { sumaMinutos: 0, conteo: 0 });
+
+    filteredData.forEach(item => {
+        const f = obtenerFechaObjeto(item);
+        if (!f) return;
+        const mNom = ordenMeses[f.getMonth()];
+
+        const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
+        const finRaw = item.Fin || item.FIN || item.Hora_Fin;
+
+        let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
+
+        if (difMin === null || difMin < 0) {
+            difMin = 0;
+        }
+
+        if (agrupar[mNom] && item.Estado === "Completado" && difMin < 720) {
+            agrupar[mNom].sumaMinutos += difMin;
+            agrupar[mNom].conteo++;
+        }
+    });
+
+    const promediosMin = ordenMeses.map(m => {
+        return agrupar[m].conteo > 0 ? Math.round(agrupar[m].sumaMinutos / agrupar[m].conteo) : null;
+    });
+
     const canvas = document.getElementById("duracionChart");
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
 
-    if (window.duracionChartInstance) window.duracionChartInstance.destroy();
+    if (duracionChartInstance) {
+        duracionChartInstance.destroy();
+    }
 
-    window.duracionChartInstance = new Chart(ctx, {
+    duracionChartInstance = new Chart(canvas.getContext("2d"), {
         type: "line",
         data: {
-            labels: datosDuracion.meses,
-            datasets: [
-                {
-                    label: 'Minutos Promedio',
-                    data: datosDuracion.promedios,
-                    borderColor: "#2563eb", // Azul brillante
-                    backgroundColor: "#2563eb",
-                    borderWidth: 2.5,
-                    tension: 0.2,
-                    spanGaps: true,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    datalabels: {
-                        align: 'bottom',
-                        anchor: 'start',
-                        offset: 4,
-                        color: '#555555',
-                        font: { size: 11, weight: 'bold' },
-                        formatter: function(value) {
-                            return value !== null ? value + ' min' : '';
-                        }
-                    }
+            labels: ordenMeses,
+            datasets: [{
+                label: "Minutos Promedio",
+                data: promediosMin,
+                borderColor: "#0284c7",
+                backgroundColor: "#0284c7",
+                borderWidth: 2.5,
+                tension: 0.2,
+                spanGaps: true,
+                pointRadius: 4,
+                datalabels: {
+                    align: 'top',
+                    anchor: 'end',
+                    offset: 4,
+                    color: '#333333',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: v => (v !== null && v !== undefined) ? v + ' m' : ''
                 }
-            ]
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { top: 15, right: 15, left: 15, bottom: 15 }
+                padding: { top: 35, bottom: 15, left: 15, right: 15 } // <-- Top en 35px libera espacio para "108 m"
             },
             plugins: {
-                legend: { display: false }, // No requiere leyenda si es 1 sola línea
-                title: {
-                    display: true,
-                    text: 'Duración Promedio por Mes (Minutos)',
-                    color: 'white',
-                    backgroundColor: '#1d2a57',
-                    font: { size: 15, weight: 'bold' },
-                    padding: { top: 8, bottom: 8 },
-                    borderRadius: 8
-                }
+                legend: { display: false }
             },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#666666', font: { size: 11 } }
+                    ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
                 },
-                y: { display: false, min: 0 }
+                y: {
+                    display: false,
+                    min: 50 // <-- Eleva el gráfico para que los valores de 91m/93m no toquen la línea gris inferior
+                }
             }
         }
     });
+}
+// Convertidor de horas hiper-flexible (Soporta "15:49", "15:49:00" y decimales de Excel)
+function convertirAHoraMinutos(valor) {
+    if (valor === null || valor === undefined || valor === "") return null;
 
-    const container = canvas.parentElement;
-    container.style.borderRadius = "15px";
-    container.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
-    container.style.padding = "15px";
-    container.style.backgroundColor = "white";
+    // 1. Si Excel lo envió como número decimal (ej: 0.659027 es 15:49)
+    if (typeof valor === 'number') {
+        const totalSegundos = Math.round(valor * 86400);
+        const horas = Math.floor(totalSegundos / 3600);
+        const minutos = Math.floor((totalSegundos % 3600) / 60);
+        return horas * 60 + minutos;
+    }
+
+    // 2. Si viene como String (ej: "15:49" o "15:49:00")
+    if (typeof valor === 'string' || valor instanceof String) {
+        const str = valor.toString().trim();
+        const partes = str.split(':');
+        if (partes.length >= 2) {
+            const h = parseInt(partes[0], 10);
+            const m = parseInt(partes[1], 10);
+            if (!isNaN(h) && !isNaN(m)) {
+                return h * 60 + m;
+            }
+        }
+    }
+
+    return null;
 }
 
-// ------------------------------------------
-// RESTO DE GRÁFICOS
-// ------------------------------------------
+function calcularDiferenciaMinutos(horaInicioRaw, horaFinRaw) {
+    const minInicio = convertirAHoraMinutos(horaInicioRaw);
+    const minFin = convertirAHoraMinutos(horaFinRaw);
 
+    if (minInicio === null || minFin === null) return null;
 
-function crearGraficoCiudad() {
-    const datos = contarPorColumna(filteredData, "Ciudad");
-    if (ciudadChart) ciudadChart.destroy();
+    let diferencia = minFin - minInicio;
 
-    ciudadChart = new Chart(document.getElementById("ciudadChart"), {
-        type: "bar",
-        data: {
-            labels: Object.keys(datos),
-            datasets: [{ label: "Órdenes", data: Object.values(datos), backgroundColor: "#14b8a6" }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                datalabels: { display: false }
-            }
-        }
-    });
+    // Si la atención terminó pasada la medianoche
+    if (diferencia < 0) {
+        diferencia += 24 * 60;
+    }
+
+    return diferencia;
 }
