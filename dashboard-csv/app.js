@@ -358,7 +358,7 @@ function crearGraficoProduccion() {
                 borderColor: "#1d2a57",
                 backgroundColor: "#1d2a57",
                 borderWidth: 2.5,
-                tension: 0.2,
+                tension: 0,
                 spanGaps: true,
                 pointRadius: 3,
                 clip: false,
@@ -377,6 +377,7 @@ function crearGraficoProduccion() {
             maintainAspectRatio: false,
             layout: { padding: { top: 35, bottom: 15, left: 20, right: 20 } },
             plugins: { legend: { display: false } },
+            // Busca options.scales en crearGraficoDuracion() y reemplázalo por:
             scales: {
                 x: {
                     grid: { display: false },
@@ -384,7 +385,8 @@ function crearGraficoProduccion() {
                 },
                 y: {
                     display: false,
-                    grace: '20%'
+                    beginAtZero: true, // Iniciar en 0 para mantener la perspectiva
+                    max: 140           // Le da un margen superior para rectificar la línea
                 }
             }
         }
@@ -431,7 +433,7 @@ function crearGraficoRGU() {
                     borderColor: "#1d2a57",
                     backgroundColor: "#1d2a57",
                     borderWidth: 2,
-                    tension: 0.2,
+                    tension: 0,
                     spanGaps: true,
                     pointRadius: 3,
                     clip: false,
@@ -532,7 +534,7 @@ function crearGraficoDuracion() {
                 borderColor: "#1d2a57",
                 backgroundColor: "#1d2a57",
                 borderWidth: 2.5,
-                tension: 0.2,
+                tension: 0,
                 spanGaps: true,
                 pointRadius: 3,
                 clip: false,
@@ -551,6 +553,7 @@ function crearGraficoDuracion() {
             maintainAspectRatio: false,
             layout: { padding: { top: 40, bottom: 15, left: 20, right: 20 } },
             plugins: { legend: { display: false } },
+            // Busca options.scales en crearGraficoDuracion() y reemplázalo por:
             scales: {
                 x: {
                     grid: { display: false },
@@ -558,8 +561,40 @@ function crearGraficoDuracion() {
                 },
                 y: {
                     display: false,
-                    grace: '20%'
+                    beginAtZero: true, // Iniciar en 0 para mantener la perspectiva
+                    max: 140           // Le da un margen superior para rectificar la línea
                 }
+            }
+        }
+    });
+}
+function renderizarMiniGraficoEfectividad(completadas, noRealizadas) {
+    const canvas = document.getElementById("efectividadMiniChart");
+    if (!canvas) return;
+
+    if (miniEfectividadChartInstance) {
+        miniEfectividadChartInstance.destroy();
+    }
+
+    miniEfectividadChartInstance = new Chart(canvas.getContext("2d"), {
+        type: "doughnut",
+        data: {
+            labels: ["Completadas", "No Realizadas"],
+            datasets: [{
+                data: [completadas, noRealizadas],
+                backgroundColor: ["#1d2a57", "#ef4444"], // Azul y Rojo
+                borderWidth: 0,
+                hoverOffset: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false, // Importante para ajustarse a los 48px x 48px
+            cutout: '70%',
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: true },
+                datalabels: { display: false }
             }
         }
     });
