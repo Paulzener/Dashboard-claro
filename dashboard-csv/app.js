@@ -311,6 +311,7 @@ function actualizarGraficos() {
     crearGraficoEstado();
     crearGraficoActividad();
     crearGraficoCiudad();
+    crearGraficoDuracion();
 }
 
 // ------------------------------------------
@@ -526,6 +527,151 @@ function crearGraficoActividad() {
                     display: false,
                     min: 0
                 }
+            }
+        }
+    });
+
+    const container = canvas.parentElement;
+    container.style.borderRadius = "15px";
+    container.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
+    container.style.padding = "15px";
+    container.style.backgroundColor = "white";
+}
+
+// ------------------------------------------
+// 3 - GRÁFICO DE INICIO Y FIN (PROMEDIO)
+// ------------------------------------------}
+// Función auxiliar para convertir "HH:MM" a minutos totales
+function calcularDiferenciaMinutos(horaInicio, horaFin) {
+    if (!horaInicio || !horaFin) return null;
+
+    // Convertir cadenas tipo "15:49"
+    const [h1, m1] = horaInicio.toString().split(':').map(Number);
+    const [h2, m2] = horaFin.toString().split(':').map(Number);
+
+    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return null;
+
+    const inicioMinutos = h1 * 60 + m1;
+    const finMinutos = h2 * 60 + m2;
+
+    let diferencia = finMinutos - inicioMinutos;
+
+    // Si la atención terminó al día siguiente (ej: empezó 23:30 y terminó 00:15)
+    if (diferencia < 0) {
+        diferencia += 24 * 60;
+    }
+
+    return diferencia;
+}
+
+// ==========================================
+// TERCER GRÁFICO: DURACIÓN PROMEDIO POR MES
+// ==========================================
+
+function calcularDuracionPromedioMensual(data) {
+    const ordenMeses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    
+    const agruparPorMes = {};
+    ordenMeses.forEach(mes => {
+        agruparPorMes[mes] = { sumaMinutos: 0, totalOrdenes: 0 };
+    });
+
+    data.forEach(item => {
+        const fechaObj = obtenerFechaObjeto(item);
+        if (!fechaObj) return;
+
+        const nombreMes = ordenMeses[fechaObj.getMonth()];
+
+        // Tomar las columnas Inicio y Fin del Excel
+        const inicio = item.Inicio;
+        const fin = item.Fin || item.FIN;
+
+        const minutosAtencion = calcularDiferenciaMinutos(inicio, fin);
+
+        // Consideramos solo atenciones con tiempo válido (mayor a 0 y menor a 12 horas para descartar errores)
+        if (agruparPorMes[nombreMes] && minutosAtencion !== null && minutosAtencion > 0 && minutosAtencion < 720) {
+            agruparPorMes[nombreMes].sumaMinutos += minutosAtencion;
+            agruparPorMes[nombreMes].totalOrdenes++;
+        }
+    });
+
+    // Calcular promedio en minutos por mes
+    const promediosArr = ordenMeses.map(mes => {
+        const datosMes = agruparPorMes[mes];
+        if (datosMes.totalOrdenes > 0) {
+            return Math.round(datosMes.sumaMinutos / datosMes.totalOrdenes); // Devuelve minutos enteros (ej: 27)
+        }
+        return null;
+    });
+
+    return {
+        meses: ordenMeses,
+        promedios: promediosArr
+    };
+}
+
+function crearGraficoDuracion() {
+    const datosDuracion = calcularDuracionPromedioMensual(filteredData);
+    
+    // Suponiendo un gráfico ID "duracionChart" en tu HTML
+    const canvas = document.getElementById("duracionChart");
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    if (window.duracionChartInstance) window.duracionChartInstance.destroy();
+
+    window.duracionChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: datosDuracion.meses,
+            datasets: [
+                {
+                    label: 'Minutos Promedio',
+                    data: datosDuracion.promedios,
+                    borderColor: "#2563eb", // Azul brillante
+                    backgroundColor: "#2563eb",
+                    borderWidth: 2.5,
+                    tension: 0.2,
+                    spanGaps: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    datalabels: {
+                        align: 'bottom',
+                        anchor: 'start',
+                        offset: 4,
+                        color: '#555555',
+                        font: { size: 11, weight: 'bold' },
+                        formatter: function(value) {
+                            return value !== null ? value + ' min' : '';
+                        }
+                    }
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: { top: 15, right: 15, left: 15, bottom: 15 }
+            },
+            plugins: {
+                legend: { display: false }, // No requiere leyenda si es 1 sola línea
+                title: {
+                    display: true,
+                    text: 'Duración Promedio por Mes (Minutos)',
+                    color: 'white',
+                    backgroundColor: '#1d2a57',
+                    font: { size: 15, weight: 'bold' },
+                    padding: { top: 8, bottom: 8 },
+                    borderRadius: 8
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#666666', font: { size: 11 } }
+                },
+                y: { display: false, min: 0 }
             }
         }
     });
