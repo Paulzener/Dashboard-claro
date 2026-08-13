@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,9 +10,13 @@
     <!-- SheetJS: Soporte nativo para Excel (.xlsx) y CSV -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    <!-- Chart.js: Gráficos -->
+    <!-- 1. Chart.js (OBLIGATORIO: Se debe cargar ANTES del plugin) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- 2. Chart.js Plugin Datalabels (Para los porcentajes sobre las líneas) -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 </head>
+
 <body>
 
     <header>
@@ -33,19 +38,40 @@
         <section id="filters" class="filters hidden">
             <div>
                 <label>Estado</label>
-                <select id="filterEstado"><option value="">Todos</option></select>
+                <select id="filterEstado">
+                    <option value="">Todos</option>
+                </select>
             </div>
             <div>
                 <label>Tipo de actividad</label>
-                <select id="filterActividad"><option value="">Todos</option></select>
+                <select id="filterActividad">
+                    <option value="">Todos</option>
+                </select>
             </div>
             <div>
                 <label>Ciudad</label>
-                <select id="filterCiudad"><option value="">Todas</option></select>
+                <select id="filterCiudad">
+                    <option value="">Todas</option>
+                </select>
             </div>
+            <!-- Agrega esto dentro de la sección #filters en tu index.html -->
             <div>
-                <label>Tipo de red</label>
-                <select id="filterRed"><option value="">Todas</option></select>
+                <label>Mes</label>
+                <select id="filterMes">
+                    <option value="">Todos los meses</option>
+                    <option value="0">Enero</option>
+                    <option value="1">Febrero</option>
+                    <option value="2">Marzo</option>
+                    <option value="3">Abril</option>
+                    <option value="4">Mayo</option>
+                    <option value="5">Junio</option>
+                    <option value="6">Julio</option>
+                    <option value="7">Agosto</option>
+                    <option value="8">Septiembre</option>
+                    <option value="9">Octubre</option>
+                    <option value="10">Noviembre</option>
+                    <option value="11">Diciembre</option>
+                </select>
             </div>
             <button id="clearFilters">Limpiar filtros</button>
         </section>
@@ -62,10 +88,21 @@
 
         <!-- GRÁFICOS -->
         <section id="charts" class="charts hidden">
-            <div class="chart-container"><h2>Estado</h2><canvas id="estadoChart"></canvas></div>
-            <div class="chart-container"><h2>Tipo de Actividad</h2><canvas id="actividadChart"></canvas></div>
-            <div class="chart-container"><h2>Tipo de Red</h2><canvas id="redChart"></canvas></div>
-            <div class="chart-container"><h2>Órdenes por Ciudad</h2><canvas id="ciudadChart"></canvas></div>
+            <div class="chart-container">
+                
+                <h2>PRODUCCIÓN GENERAL MENSUAL</h2>
+                <canvas id="estadoChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h2>PROMEDIO GENERAL HISTORICO</h2>
+                <canvas id="actividadChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h2>Ciudad</h2>
+                <canvas id="ciudadChart"></canvas>
+            </div>
         </section>
 
         <!-- TABLA -->
@@ -96,4 +133,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
