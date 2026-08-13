@@ -8,6 +8,7 @@ let filteredData = [];
 let estadoChartInstance = null;
 let actividadChartInstance = null;
 let duracionChartInstance = null;
+let miniEfectividadChartInstance = null; // <-- RECUPERADO
 
 const ordenMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const ordenMesesCompletos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -45,15 +46,12 @@ function obtenerFechaObjeto(item) {
 
     if (rawFecha instanceof Date) return rawFecha;
 
-    // Número serial de Excel
     if (typeof rawFecha === 'number') {
         return new Date(Math.round((rawFecha - 25569) * 86400 * 1000));
     }
 
     if (typeof rawFecha === 'string') {
         let str = rawFecha.trim();
-
-        // Si es tipo "02-01-2026" o "02/01/2026"
         const partes = str.split(/[\/\-\s]/);
         if (partes.length >= 3) {
             const dia = parseInt(partes[0], 10);
@@ -103,7 +101,7 @@ function calcularDiferenciaMinutos(horaInicioRaw, horaFinRaw) {
     if (minInicio === null || minFin === null) return null;
 
     let diferencia = minFin - minInicio;
-    if (diferencia < 0) diferencia += 24 * 60; // Cambio de día
+    if (diferencia < 0) diferencia += 24 * 60;
 
     return diferencia;
 }
@@ -130,7 +128,7 @@ function cargarArchivoExcel(e) {
 
         poblarFiltros(rawExcelData);
         mostrarSecciones();
-        aplicarFiltros(); // Filtra y actualiza el Dashboard
+        aplicarFiltros();
     };
 
     reader.readAsArrayBuffer(file);
@@ -161,15 +159,9 @@ function poblarFiltros(data) {
             if (!isNaN(ano)) anos.add(ano);
         }
 
-        if (item.Estado) {
-            estados.add(item.Estado);
-        }
-        if (item.Tipo_de_Activi || item.Tipo_de_Actividad) {
-            actividades.add(item.Tipo_de_Activi || item.Tipo_de_Actividad);
-        }
-        if (item.Ciudad) {
-            ciudades.add(item.Ciudad);
-        }
+        if (item.Estado) estados.add(item.Estado);
+        if (item.Tipo_de_Activi || item.Tipo_de_Actividad) actividades.add(item.Tipo_de_Activi || item.Tipo_de_Actividad);
+        if (item.Ciudad) ciudades.add(item.Ciudad);
         const zonaVal = item.Zona_de_traba || item.Zona;
         if (zonaVal) zonas.add(zonaVal);
     });
@@ -183,7 +175,6 @@ function poblarFiltros(data) {
     llenarSelect("filterZona", zonas);
     llenarSelect("filterMes", ordenMeses);
 
-    // Seleccionar automáticamente el año más reciente si existe
     const selectAno = document.getElementById("filterAno");
     if (selectAno && anosOrdenados.length > 0) {
         selectAno.value = anosOrdenados[0];
@@ -214,7 +205,7 @@ function llenarSelect(id, setValores) {
 function aplicarFiltros() {
     const anoSel = document.getElementById("filterAno")?.value || "";
     const mesSel = document.getElementById("filterMes")?.value || "";
-    const estadoSel = document.getElementById("filterEstado")?.value || ""; // <-- CORREGIDO
+    const estadoSel = document.getElementById("filterEstado")?.value || "";
     const actividadSel = document.getElementById("filterActividad")?.value || "";
     const ciudadSel = document.getElementById("filterCiudad")?.value || "";
     const zonaSel = document.getElementById("filterZona")?.value || "";
@@ -226,7 +217,7 @@ function aplicarFiltros() {
 
         const cumpleAno = anoSel === "" || itemAno === anoSel;
         const cumpleMes = mesSel === "" || itemMes === mesSel;
-        const cumpleEstado = estadoSel === "" || item.Estado === estadoSel; // <-- CORREGIDO
+        const cumpleEstado = estadoSel === "" || item.Estado === estadoSel;
 
         const act = item.Tipo_de_Activi || item.Tipo_de_Actividad;
         const cumpleActividad = actividadSel === "" || act === actividadSel;
@@ -263,24 +254,42 @@ function actualizarKPIs() {
     const total = filteredData.length;
     let completadas = 0;
     let noRealizadas = 0;
-    let rguTotal = 0;
+    let rguTotalSum = 0;
 
     filteredData.forEach(item => {
         const est = (item.Estado || "").toString().trim().toLowerCase();
         if (est === "completado") completadas++;
         if (est === "no realizada") noRealizadas++;
-        rguTotal += Number(item.RGU) || 0;
+
+        let rguRaw = item.RGU ?? item.rgu ?? 0;
+        if (typeof rguRaw === 'string') {
+            rguRaw = rguRaw.replace(',', '.').trim();
+        }
+
+        const rguNum = parseFloat(rguRaw);
+        if (!isNaN(rguNum)) {
+            rguTotalSum += rguNum;
+        }
     });
 
-    const efectividadVal = completadas + noRealizadas > 0
+    const efectividadVal = (completadas + noRealizadas) > 0
         ? ((completadas / (completadas + noRealizadas)) * 100).toFixed(1) + "%"
         : "0%";
+
+    const rguPromedio = completadas > 0 ? (rguTotalSum / completadas) : 0;
 
     if (document.getElementById("totalOrdenes")) document.getElementById("totalOrdenes").innerText = total;
     if (document.getElementById("completadas")) document.getElementById("completadas").innerText = completadas;
     if (document.getElementById("noRealizadas")) document.getElementById("noRealizadas").innerText = noRealizadas;
     if (document.getElementById("efectividad")) document.getElementById("efectividad").innerText = efectividadVal;
-    if (document.getElementById("rguTotal")) document.getElementById("rguTotal").innerText = rguTotal.toFixed(1);
+
+    const rguElem = document.getElementById("rguTotal");
+    if (rguElem) {
+        rguElem.innerText = rguPromedio.toFixed(1).replace('.', ',');
+    }
+
+    // <-- DIBUJAR MINI GRÁFICO DE KPI
+    renderizarMiniGraficoEfectividad(completadas, noRealizadas);
 }
 
 // ==========================================
@@ -349,7 +358,7 @@ function crearGraficoProduccion() {
     if (estadoChartInstance) estadoChartInstance.destroy();
 
     estadoChartInstance = new Chart(canvas.getContext("2d"), {
-        type: "line",
+        type: "line", // Gráfico puramente de línea (sin barras de fondo)
         data: {
             labels: ordenMeses,
             datasets: [{
@@ -358,16 +367,23 @@ function crearGraficoProduccion() {
                 borderColor: "#1d2a57",
                 backgroundColor: "#1d2a57",
                 borderWidth: 2.5,
-                tension: 0,
+                tension: 0.2, // Curvatura suave elegante
                 spanGaps: true,
-                pointRadius: 3,
-                clip: false,
+                pointRadius: 4,
+                pointBackgroundColor: "#ffffff", // Puntos blancos estilizados
+                pointBorderColor: "#1d2a57",
+                pointBorderWidth: 2,
+                pointHoverRadius: 6,
                 datalabels: {
-                    anchor: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
-                    align: context => (context.dataIndex % 2 === 0 ? 'top' : 'bottom'),
-                    offset: 4,
+                    anchor: 'end',
+                    align: 'top',
+                    offset: 6,
                     color: '#1d2a57',
-                    font: { weight: 'bold', size: 10 },
+                    font: { 
+                        size: 11, 
+                        weight: 'bold',
+                        family: 'Segoe UI, sans-serif'
+                    },
                     formatter: v => v !== null ? v.toString().replace('.', ',') + '%' : ''
                 }
             }]
@@ -375,18 +391,30 @@ function crearGraficoProduccion() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 35, bottom: 15, left: 20, right: 20 } },
-            plugins: { legend: { display: false } },
-            // Busca options.scales en crearGraficoDuracion() y reemplázalo por:
+            plugins: {
+                legend: { display: false }
+            },
+            layout: {
+                padding: { top: 25, bottom: 5, left: 10, right: 10 }
+            },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
+                    border: { display: false }, // Quita la línea horizontal sobre las letras
+                    ticks: { 
+                        font: { 
+                            size: 12, 
+                            weight: '600', 
+                            family: 'Segoe UI, sans-serif' 
+                        },
+                        color: '#475569', // Color gris oscuro moderno para los meses
+                        padding: 8
+                    }
                 },
                 y: {
-                    display: false,
-                    beginAtZero: true, // Iniciar en 0 para mantener la perspectiva
-                    max: 140           // Le da un margen superior para rectificar la línea
+                    display: false, // Eje Y oculto para diseño limpio
+                    min: 40,
+                    max: 105
                 }
             }
         }
@@ -404,7 +432,9 @@ function crearGraficoRGU() {
         const est = (item.Estado || "").toString().trim().toLowerCase();
 
         if (agrupar[mNom] && est === "completado") {
-            agrupar[mNom].sumaRGU += Number(item.RGU) || 0;
+            let rguRaw = item.RGU ?? item.rgu ?? 0;
+            if (typeof rguRaw === 'string') rguRaw = rguRaw.replace(',', '.').trim();
+            agrupar[mNom].sumaRGU += Number(rguRaw) || 0;
             agrupar[mNom].completados++;
         }
     });
@@ -416,7 +446,7 @@ function crearGraficoRGU() {
     });
 
     const VALOR_META = 2.0;
-    const metaArray = ordenMeses.map(() => VALOR_META); // Muestra la línea de meta fija
+    const metaArray = ordenMeses.map(() => VALOR_META);
 
     const canvas = document.getElementById("actividadChart");
     if (!canvas) return;
@@ -463,19 +493,8 @@ function crearGraficoRGU() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 35, bottom: 20, left: 20, right: 20 } },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'bottom',
-                    labels: {
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        boxWidth: 6,
-                        boxHeight: 6,
-                        padding: 15
-                    }
-                }
+            layout: {
+                padding: { top: 25, bottom: 0, left: 10, right: 10 }
             },
             scales: {
                 x: {
@@ -551,9 +570,10 @@ function crearGraficoDuracion() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 40, bottom: 15, left: 20, right: 20 } },
+            layout: {
+                padding: { top: 25, bottom: 0, left: 10, right: 10 }
+            },
             plugins: { legend: { display: false } },
-            // Busca options.scales en crearGraficoDuracion() y reemplázalo por:
             scales: {
                 x: {
                     grid: { display: false },
@@ -561,13 +581,14 @@ function crearGraficoDuracion() {
                 },
                 y: {
                     display: false,
-                    beginAtZero: true, // Iniciar en 0 para mantener la perspectiva
-                    max: 140           // Le da un margen superior para rectificar la línea
+                    beginAtZero: true,
+                    max: 160
                 }
             }
         }
     });
 }
+
 function renderizarMiniGraficoEfectividad(completadas, noRealizadas) {
     const canvas = document.getElementById("efectividadMiniChart");
     if (!canvas) return;
@@ -582,14 +603,14 @@ function renderizarMiniGraficoEfectividad(completadas, noRealizadas) {
             labels: ["Completadas", "No Realizadas"],
             datasets: [{
                 data: [completadas, noRealizadas],
-                backgroundColor: ["#1d2a57", "#ef4444"], // Azul y Rojo
+                backgroundColor: ["#1d2a57", "#ef4444"],
                 borderWidth: 0,
                 hoverOffset: 3
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false, // Importante para ajustarse a los 48px x 48px
+            maintainAspectRatio: false,
             cutout: '70%',
             plugins: {
                 legend: { display: false },
