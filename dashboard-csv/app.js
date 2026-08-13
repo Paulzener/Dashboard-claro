@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Eventos para filtros
+    document.getElementById("filterAno")?.addEventListener("change", aplicarFiltros);
     document.getElementById("filterEstado")?.addEventListener("change", aplicarFiltros);
     document.getElementById("filterActividad")?.addEventListener("change", aplicarFiltros);
     document.getElementById("filterCiudad")?.addEventListener("change", aplicarFiltros);
@@ -66,20 +67,41 @@ function obtenerFechaObjeto(item) {
     return isNaN(d.getTime()) ? null : d;
 }
 
-function calcularDiferenciaMinutos(horaInicio, horaFin) {
-    if (!horaInicio || !horaFin) return null;
+function convertirAHoraMinutos(valor) {
+    if (valor === null || valor === undefined || valor === "") return null;
 
-    const [h1, m1] = horaInicio.toString().split(':').map(Number);
-    const [h2, m2] = horaFin.toString().split(':').map(Number);
+    if (typeof valor === 'number') {
+        const totalSegundos = Math.round(valor * 86400);
+        const horas = Math.floor(totalSegundos / 3600);
+        const minutos = Math.floor((totalSegundos % 3600) / 60);
+        return horas * 60 + minutos;
+    }
 
-    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return null;
+    if (typeof valor === 'string' || valor instanceof String) {
+        const str = valor.toString().trim();
+        const partes = str.split(':');
+        if (partes.length >= 2) {
+            const h = parseInt(partes[0], 10);
+            const m = parseInt(partes[1], 10);
+            if (!isNaN(h) && !isNaN(m)) {
+                return h * 60 + m;
+            }
+        }
+    }
 
-    let inicioMin = h1 * 60 + m1;
-    let finMin = h2 * 60 + m2;
-    let dif = finMin - inicioMin;
+    return null;
+}
 
-    if (dif < 0) dif += 24 * 60; // Cambio de día
-    return dif;
+function calcularDiferenciaMinutos(horaInicioRaw, horaFinRaw) {
+    const minInicio = convertirAHoraMinutos(horaInicioRaw);
+    const minFin = convertirAHoraMinutos(horaFinRaw);
+
+    if (minInicio === null || minFin === null) return null;
+
+    let diferencia = minFin - minInicio;
+    if (diferencia < 0) diferencia += 24 * 60; // Cambio de día
+
+    return diferencia;
 }
 
 // ==========================================
@@ -103,8 +125,10 @@ function cargarArchivoExcel(e) {
         filteredData = [...rawExcelData];
 
         poblarFiltros(rawExcelData);
+        // Agregar al final de poblarFiltros(data):
+        llenarSelect("filterMes", ordenMeses);
         mostrarSecciones();
-        actualizarDashboard();
+        aplicarFiltros(); // Filtra y actualiza el Dashboard de forma inicial
     };
 
     reader.readAsArrayBuffer(file);
@@ -122,14 +146,23 @@ function mostrarSecciones() {
 // ==========================================
 
 function poblarFiltros(data) {
+    const anos = new Set();
+    const estados = new Set();
     const actividades = new Set();
     const ciudades = new Set();
 
-    // Definimos únicamente los estados permitidos
     const estadosPermitidos = ["Completado", "No Realizada"];
 
     data.forEach(item => {
-        // Solo agregamos el estado si coincide con la lista permitida
+        const fechaObj = obtenerFechaObjeto(item);
+        if (fechaObj) {
+            const ano = fechaObj.getFullYear();
+            if (!isNaN(ano)) anos.add(ano);
+        }
+
+        if (item.Estado && estadosPermitidos.includes(item.Estado)) {
+            estados.add(item.Estado);
+        }
         if (item.Tipo_de_Activi || item.Tipo_de_Actividad) {
             actividades.add(item.Tipo_de_Activi || item.Tipo_de_Actividad);
         }
@@ -138,18 +171,35 @@ function poblarFiltros(data) {
         }
     });
 
+    const anosOrdenados = Array.from(anos).sort((a, b) => b - a);
+
+    llenarSelect("filterAno", anosOrdenados);
+    llenarSelect("filterEstado", estados);
     llenarSelect("filterActividad", actividades);
     llenarSelect("filterCiudad", ciudades);
+
+    // Seleccionar automáticamente el año más reciente si existe
+    const selectAno = document.getElementById("filterAno");
+    if (selectAno && anosOrdenados.length > 0) {
+        selectAno.value = anosOrdenados[0];
+    }
 }
 
 function llenarSelect(id, setValores) {
     const select = document.getElementById(id);
     if (!select) return;
-    const optionDefault = select.options[0];
+
+    // Guardamos la primera opción (ej: "Todos...")
+    const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
+    if (!select.options[0]) {
+        optionDefault.value = "";
+        optionDefault.textContent = "Todos";
+    }
+
     select.innerHTML = "";
     select.appendChild(optionDefault);
 
-    Array.from(setValores).sort().forEach(val => {
+    Array.from(setValores).forEach(val => {
         const opt = document.createElement("option");
         opt.value = val;
         opt.textContent = val;
@@ -158,32 +208,42 @@ function llenarSelect(id, setValores) {
 }
 
 function aplicarFiltros() {
-    const valActividad = document.getElementById("filterActividad")?.value;
-    const valCiudad = document.getElementById("filterCiudad")?.value;
-    const valMes = document.getElementById("filterMes")?.value;
+    const anoSel = document.getElementById("filterAno")?.value || "";
+    const mesSel = document.getElementById("filterMes")?.value || ""; // <-- 1. Leer el mes seleccionado
+    const estadoSel = document.getElementById("filterEstado")?.value || "";
+    const actividadSel = document.getElementById("filterActividad")?.value || "";
+    const ciudadSel = document.getElementById("filterCiudad")?.value || "";
 
     filteredData = rawExcelData.filter(item => {
-        const actOk = !valActividad || (item.Tipo_de_Activi || item.Tipo_de_Actividad) === valActividad;
-        const ciudadOk = !valCiudad || item.Ciudad === valCiudad;
+        const fechaObj = obtenerFechaObjeto(item);
+        const itemAno = fechaObj ? fechaObj.getFullYear().toString() : "";
+        
+        // 2. Obtener el nombre corto del mes (Ene, Feb, Mar...)
+        const itemMes = fechaObj ? ordenMeses[fechaObj.getMonth()] : "";
 
-        let mesOk = true;
-        if (valMes !== "") {
-            const fechaObj = obtenerFechaObjeto(item);
-            mesOk = fechaObj && fechaObj.getMonth() === parseInt(valMes, 10);
-        }
+        const cumpleAno = anoSel === "" || itemAno === anoSel;
+        const cumpleMes = mesSel === "" || itemMes === mesSel; // <-- 3. Validar filtro de mes
+        const cumpleEstado = estadoSel === "" || item.Estado === estadoSel;
 
-        return  actOk && ciudadOk && mesOk;
+        const act = item.Tipo_de_Activi || item.Tipo_de_Actividad;
+        const cumpleActividad = actividadSel === "" || act === actividadSel;
+
+        const cumpleCiudad = ciudadSel === "" || item.Ciudad === ciudadSel;
+
+        return cumpleAno && cumpleMes && cumpleEstado && cumpleActividad && cumpleCiudad;
     });
 
     actualizarDashboard();
 }
 
 function limpiarFiltros() {
-    document.getElementById("filterActividad").value = "";
-    document.getElementById("filterCiudad").value = "";
-    document.getElementById("filterMes").value = "";
-    filteredData = [...rawExcelData];
-    actualizarDashboard();
+    if (document.getElementById("filterAno")) document.getElementById("filterAno").value = "";
+    if (document.getElementById("filterEstado")) document.getElementById("filterEstado").value = "";
+    if (document.getElementById("filterActividad")) document.getElementById("filterActividad").value = "";
+    if (document.getElementById("filterCiudad")) document.getElementById("filterCiudad").value = "";
+    if (document.getElementById("filterMes")) document.getElementById("filterMes").value = "";
+
+    aplicarFiltros();
 }
 
 function actualizarDashboard() {
@@ -210,12 +270,12 @@ function actualizarKPIs() {
         ? ((completadas / (completadas + noRealizadas)) * 100).toFixed(1) + "%"
         : "0%";
 
-    document.getElementById("totalOrdenes").innerText = total;
-    document.getElementById("completadas").innerText = completadas;
-    document.getElementById("noRealizadas").innerText = noRealizadas;
-    document.getElementById("efectividad").innerText = efectividadVal;
-    document.getElementById("rguTotal").innerText = rguTotal.toFixed(1);
-    document.getElementById("extensores").innerText = extensores;
+    if (document.getElementById("totalOrdenes")) document.getElementById("totalOrdenes").innerText = total;
+    if (document.getElementById("completadas")) document.getElementById("completadas").innerText = completadas;
+    if (document.getElementById("noRealizadas")) document.getElementById("noRealizadas").innerText = noRealizadas;
+    if (document.getElementById("efectividad")) document.getElementById("efectividad").innerText = efectividadVal;
+    if (document.getElementById("rguTotal")) document.getElementById("rguTotal").innerText = rguTotal.toFixed(1);
+    if (document.getElementById("extensores")) document.getElementById("extensores").innerText = extensores;
 }
 
 // ==========================================
@@ -227,7 +287,6 @@ function renderizarTabla() {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    // Mostrar primeras 100 filas para rendimiento
     const limiteData = filteredData.slice(0, 100);
 
     limiteData.forEach(item => {
@@ -247,7 +306,9 @@ function renderizarTabla() {
         tbody.appendChild(tr);
     });
 
-    document.getElementById("rowCount").innerText = `Mostrando ${limiteData.length} de ${filteredData.length} registros`;
+    if (document.getElementById("rowCount")) {
+        document.getElementById("rowCount").innerText = `Mostrando ${limiteData.length} de ${filteredData.length} registros`;
+    }
 }
 
 // ==========================================
@@ -260,7 +321,8 @@ function actualizarGraficos() {
     crearGraficoDuracion();
 }
 
-const ordenMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const ordenMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const ordenMesesCompletos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 // --- GRÁFICO 1: PRODUCCIÓN GENERAL MENSUAL ---
 function crearGraficoProduccion() {
@@ -296,10 +358,10 @@ function crearGraficoProduccion() {
                 borderWidth: 2.5,
                 tension: 0.2,
                 spanGaps: true,
-                pointRadius: 4,
+                pointRadius: 3,
                 datalabels: {
-                    align: 'bottom',
-                    anchor: 'start',
+                    align: 'top',
+                    anchor: 'end',
                     offset: 4,
                     color: '#1d2a57',
                     font: { weight: 'bold', size: 10 },
@@ -310,20 +372,14 @@ function crearGraficoProduccion() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                padding: { top: 25, bottom: 15, left: 15, right: 15 } // Más espacio superior
-            },
+            layout: { padding: { top: 25, bottom: 15, left: 15, right: 15 } },
             plugins: { legend: { display: false } },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
+                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
                 },
-                y: {
-                    display: false,
-                    min: 50,  // <-- Al poner mínimo 50%, la curva sube y no choca con el eje X
-                    max: 100
-                }
+                y: { display: false, min: 40, max: 100 }
             }
         }
     });
@@ -368,10 +424,10 @@ function crearGraficoRGU() {
                     data: promedios,
                     borderColor: "#1d2a57",
                     backgroundColor: "#1d2a57",
-                    borderWidth: 2.5,
+                    borderWidth: 2,
                     tension: 0.2,
                     spanGaps: true,
-                    pointRadius: 4,
+                    pointRadius: 3,
                     datalabels: {
                         align: 'bottom',
                         anchor: 'start',
@@ -386,9 +442,9 @@ function crearGraficoRGU() {
                     data: metaArray,
                     borderColor: "#facc15",
                     backgroundColor: "#facc15",
-                    borderWidth: 1,
+                    borderWidth: 1.5,
                     spanGaps: true,
-                    pointRadius: 4,
+                    pointRadius: 2.5,
                     datalabels: { display: false }
                 }
             ]
@@ -396,26 +452,26 @@ function crearGraficoRGU() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                padding: { top: 25, bottom: 15, left: 15, right: 15 }
-            },
+            layout: { padding: { top: 25, bottom: 15, left: 15, right: 15 } },
             plugins: {
                 legend: {
                     display: true,
                     position: 'bottom',
-                    labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 6 }
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        boxWidth: 6,
+                        boxHeight: 6,
+                        padding: 15
+                    }
                 }
             },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
+                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
                 },
-                y: {
-                    display: false,
-                    min: 0,
-                    max: 3.5 // <-- Da techo suficiente para que la meta (2.3) y los datos no se peguen arriba
-                }
+                y: { display: false, min: 0, max: 3.5 }
             }
         }
     });
@@ -436,9 +492,7 @@ function crearGraficoDuracion() {
 
         let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
 
-        if (difMin === null || difMin < 0) {
-            difMin = 0;
-        }
+        if (difMin === null || difMin < 0) difMin = 0;
 
         if (agrupar[mNom] && item.Estado === "Completado" && difMin < 720) {
             agrupar[mNom].sumaMinutos += difMin;
@@ -453,9 +507,7 @@ function crearGraficoDuracion() {
     const canvas = document.getElementById("duracionChart");
     if (!canvas) return;
 
-    if (duracionChartInstance) {
-        duracionChartInstance.destroy();
-    }
+    if (duracionChartInstance) duracionChartInstance.destroy();
 
     duracionChartInstance = new Chart(canvas.getContext("2d"), {
         type: "line",
@@ -469,10 +521,10 @@ function crearGraficoDuracion() {
                 borderWidth: 2.5,
                 tension: 0.2,
                 spanGaps: true,
-                pointRadius: 4,
+                pointRadius: 3,
                 datalabels: {
-                    align: 'bottom',
-                    anchor: 'start',
+                    align: 'top',
+                    anchor: 'end',
                     offset: 4,
                     color: '#1d2a57',
                     font: { weight: 'bold', size: 10 },
@@ -483,65 +535,15 @@ function crearGraficoDuracion() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                padding: { top: 35, bottom: 15, left: 15, right: 15 } // <-- Top en 35px libera espacio para "108 m"
-            },
-            plugins: {
-                legend: { display: false }
-            },
+            layout: { padding: { top: 35, bottom: 15, left: 15, right: 15 } },
+            plugins: { legend: { display: false } },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
+                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
                 },
-                y: {
-                    display: false,
-                    min: 50 // <-- Eleva el gráfico para que los valores de 91m/93m no toquen la línea gris inferior
-                }
+                y: { display: false, min: 40 }
             }
         }
     });
-}
-// Convertidor de horas hiper-flexible (Soporta "15:49", "15:49:00" y decimales de Excel)
-function convertirAHoraMinutos(valor) {
-    if (valor === null || valor === undefined || valor === "") return null;
-
-    // 1. Si Excel lo envió como número decimal (ej: 0.659027 es 15:49)
-    if (typeof valor === 'number') {
-        const totalSegundos = Math.round(valor * 86400);
-        const horas = Math.floor(totalSegundos / 3600);
-        const minutos = Math.floor((totalSegundos % 3600) / 60);
-        return horas * 60 + minutos;
-    }
-
-    // 2. Si viene como String (ej: "15:49" o "15:49:00")
-    if (typeof valor === 'string' || valor instanceof String) {
-        const str = valor.toString().trim();
-        const partes = str.split(':');
-        if (partes.length >= 2) {
-            const h = parseInt(partes[0], 10);
-            const m = parseInt(partes[1], 10);
-            if (!isNaN(h) && !isNaN(m)) {
-                return h * 60 + m;
-            }
-        }
-    }
-
-    return null;
-}
-
-function calcularDiferenciaMinutos(horaInicioRaw, horaFinRaw) {
-    const minInicio = convertirAHoraMinutos(horaInicioRaw);
-    const minFin = convertirAHoraMinutos(horaFinRaw);
-
-    if (minInicio === null || minFin === null) return null;
-
-    let diferencia = minFin - minInicio;
-
-    // Si la atención terminó pasada la medianoche
-    if (diferencia < 0) {
-        diferencia += 24 * 60;
-    }
-
-    return diferencia;
 }
