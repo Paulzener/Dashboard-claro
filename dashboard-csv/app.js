@@ -122,17 +122,22 @@ function mostrarSecciones() {
 // ==========================================
 
 function poblarFiltros(data) {
-    const estados = new Set();
     const actividades = new Set();
     const ciudades = new Set();
 
+    // Definimos únicamente los estados permitidos
+    const estadosPermitidos = ["Completado", "No Realizada"];
+
     data.forEach(item => {
-        if (item.Estado) estados.add(item.Estado);
-        if (item.Tipo_de_Activi || item.Tipo_de_Actividad) actividades.add(item.Tipo_de_Activi || item.Tipo_de_Actividad);
-        if (item.Ciudad) ciudades.add(item.Ciudad);
+        // Solo agregamos el estado si coincide con la lista permitida
+        if (item.Tipo_de_Activi || item.Tipo_de_Actividad) {
+            actividades.add(item.Tipo_de_Activi || item.Tipo_de_Actividad);
+        }
+        if (item.Ciudad) {
+            ciudades.add(item.Ciudad);
+        }
     });
 
-    llenarSelect("filterEstado", estados);
     llenarSelect("filterActividad", actividades);
     llenarSelect("filterCiudad", ciudades);
 }
@@ -153,13 +158,11 @@ function llenarSelect(id, setValores) {
 }
 
 function aplicarFiltros() {
-    const valEstado = document.getElementById("filterEstado")?.value;
     const valActividad = document.getElementById("filterActividad")?.value;
     const valCiudad = document.getElementById("filterCiudad")?.value;
     const valMes = document.getElementById("filterMes")?.value;
 
     filteredData = rawExcelData.filter(item => {
-        const estadoOk = !valEstado || item.Estado === valEstado;
         const actOk = !valActividad || (item.Tipo_de_Activi || item.Tipo_de_Actividad) === valActividad;
         const ciudadOk = !valCiudad || item.Ciudad === valCiudad;
 
@@ -169,14 +172,13 @@ function aplicarFiltros() {
             mesOk = fechaObj && fechaObj.getMonth() === parseInt(valMes, 10);
         }
 
-        return estadoOk && actOk && ciudadOk && mesOk;
+        return  actOk && ciudadOk && mesOk;
     });
 
     actualizarDashboard();
 }
 
 function limpiarFiltros() {
-    document.getElementById("filterEstado").value = "";
     document.getElementById("filterActividad").value = "";
     document.getElementById("filterCiudad").value = "";
     document.getElementById("filterMes").value = "";
@@ -296,10 +298,10 @@ function crearGraficoProduccion() {
                 spanGaps: true,
                 pointRadius: 4,
                 datalabels: {
-                    align: 'top',
-                    anchor: 'end',
+                    align: 'bottom',
+                    anchor: 'start',
                     offset: 4,
-                    color: '#333333',
+                    color: '#1d2a57',
                     font: { weight: 'bold', size: 10 },
                     formatter: v => v !== null ? v.toString().replace('.', ',') + '%' : ''
                 }
@@ -371,10 +373,10 @@ function crearGraficoRGU() {
                     spanGaps: true,
                     pointRadius: 4,
                     datalabels: {
-                        align: 'top',
-                        anchor: 'end',
+                        align: 'bottom',
+                        anchor: 'start',
                         offset: 4,
-                        color: '#555555',
+                        color: '#1d2a57',
                         font: { weight: 'bold', size: 10 },
                         formatter: v => v !== null ? v.toString().replace('.', ',') : ''
                     }
@@ -401,7 +403,7 @@ function crearGraficoRGU() {
                 legend: {
                     display: true,
                     position: 'bottom',
-                    labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8 }
+                    labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 6 }
                 }
             },
             scales: {
@@ -462,17 +464,17 @@ function crearGraficoDuracion() {
             datasets: [{
                 label: "Minutos Promedio",
                 data: promediosMin,
-                borderColor: "#0284c7",
-                backgroundColor: "#0284c7",
+                borderColor: "#1d2a57",
+                backgroundColor: "#1d2a57",
                 borderWidth: 2.5,
                 tension: 0.2,
                 spanGaps: true,
                 pointRadius: 4,
                 datalabels: {
-                    align: 'top',
-                    anchor: 'end',
+                    align: 'bottom',
+                    anchor: 'start',
                     offset: 4,
-                    color: '#333333',
+                    color: '#1d2a57',
                     font: { weight: 'bold', size: 10 },
                     formatter: v => (v !== null && v !== undefined) ? v + ' m' : ''
                 }
