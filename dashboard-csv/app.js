@@ -9,6 +9,9 @@ let estadoChartInstance = null;
 let actividadChartInstance = null;
 let duracionChartInstance = null;
 
+const ordenMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const ordenMesesCompletos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
 // Registrar plugin de datalabels si está presente
 if (typeof ChartDataLabels !== 'undefined') {
     Chart.register(ChartDataLabels);
@@ -23,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Eventos para filtros
     document.getElementById("filterAno")?.addEventListener("change", aplicarFiltros);
     document.getElementById("filterEstado")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("filterZona")?.addEventListener("change", aplicarFiltros);
     document.getElementById("filterActividad")?.addEventListener("change", aplicarFiltros);
     document.getElementById("filterCiudad")?.addEventListener("change", aplicarFiltros);
     document.getElementById("filterMes")?.addEventListener("change", aplicarFiltros);
@@ -125,10 +129,8 @@ function cargarArchivoExcel(e) {
         filteredData = [...rawExcelData];
 
         poblarFiltros(rawExcelData);
-        // Agregar al final de poblarFiltros(data):
-        llenarSelect("filterMes", ordenMeses);
         mostrarSecciones();
-        aplicarFiltros(); // Filtra y actualiza el Dashboard de forma inicial
+        aplicarFiltros(); // Filtra y actualiza el Dashboard
     };
 
     reader.readAsArrayBuffer(file);
@@ -150,8 +152,7 @@ function poblarFiltros(data) {
     const estados = new Set();
     const actividades = new Set();
     const ciudades = new Set();
-
-    const estadosPermitidos = ["Completado", "No Realizada"];
+    const zonas = new Set();
 
     data.forEach(item => {
         const fechaObj = obtenerFechaObjeto(item);
@@ -160,7 +161,7 @@ function poblarFiltros(data) {
             if (!isNaN(ano)) anos.add(ano);
         }
 
-        if (item.Estado && estadosPermitidos.includes(item.Estado)) {
+        if (item.Estado) {
             estados.add(item.Estado);
         }
         if (item.Tipo_de_Activi || item.Tipo_de_Actividad) {
@@ -169,6 +170,8 @@ function poblarFiltros(data) {
         if (item.Ciudad) {
             ciudades.add(item.Ciudad);
         }
+        const zonaVal = item.Zona_de_traba || item.Zona;
+        if (zonaVal) zonas.add(zonaVal);
     });
 
     const anosOrdenados = Array.from(anos).sort((a, b) => b - a);
@@ -177,6 +180,8 @@ function poblarFiltros(data) {
     llenarSelect("filterEstado", estados);
     llenarSelect("filterActividad", actividades);
     llenarSelect("filterCiudad", ciudades);
+    llenarSelect("filterZona", zonas);
+    llenarSelect("filterMes", ordenMeses);
 
     // Seleccionar automáticamente el año más reciente si existe
     const selectAno = document.getElementById("filterAno");
@@ -189,7 +194,6 @@ function llenarSelect(id, setValores) {
     const select = document.getElementById(id);
     if (!select) return;
 
-    // Guardamos la primera opción (ej: "Todos...")
     const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
     if (!select.options[0]) {
         optionDefault.value = "";
@@ -209,28 +213,30 @@ function llenarSelect(id, setValores) {
 
 function aplicarFiltros() {
     const anoSel = document.getElementById("filterAno")?.value || "";
-    const mesSel = document.getElementById("filterMes")?.value || ""; // <-- 1. Leer el mes seleccionado
-    const estadoSel = document.getElementById("filterEstado")?.value || "";
+    const mesSel = document.getElementById("filterMes")?.value || "";
+    const estadoSel = document.getElementById("filterEstado")?.value || ""; // <-- CORREGIDO
     const actividadSel = document.getElementById("filterActividad")?.value || "";
     const ciudadSel = document.getElementById("filterCiudad")?.value || "";
+    const zonaSel = document.getElementById("filterZona")?.value || "";
 
     filteredData = rawExcelData.filter(item => {
         const fechaObj = obtenerFechaObjeto(item);
         const itemAno = fechaObj ? fechaObj.getFullYear().toString() : "";
-
-        // 2. Obtener el nombre corto del mes (Ene, Feb, Mar...)
         const itemMes = fechaObj ? ordenMeses[fechaObj.getMonth()] : "";
 
         const cumpleAno = anoSel === "" || itemAno === anoSel;
-        const cumpleMes = mesSel === "" || itemMes === mesSel; // <-- 3. Validar filtro de mes
-        const cumpleEstado = estadoSel === "" || item.Estado === estadoSel;
+        const cumpleMes = mesSel === "" || itemMes === mesSel;
+        const cumpleEstado = estadoSel === "" || item.Estado === estadoSel; // <-- CORREGIDO
 
         const act = item.Tipo_de_Activi || item.Tipo_de_Actividad;
         const cumpleActividad = actividadSel === "" || act === actividadSel;
 
         const cumpleCiudad = ciudadSel === "" || item.Ciudad === ciudadSel;
 
-        return cumpleAno && cumpleMes && cumpleEstado && cumpleActividad && cumpleCiudad;
+        const itemZona = item.Zona_de_traba || item.Zona || "";
+        const cumpleZona = zonaSel === "" || itemZona === zonaSel;
+
+        return cumpleAno && cumpleMes && cumpleEstado && cumpleActividad && cumpleCiudad && cumpleZona;
     });
 
     actualizarDashboard();
@@ -242,6 +248,7 @@ function limpiarFiltros() {
     if (document.getElementById("filterActividad")) document.getElementById("filterActividad").value = "";
     if (document.getElementById("filterCiudad")) document.getElementById("filterCiudad").value = "";
     if (document.getElementById("filterMes")) document.getElementById("filterMes").value = "";
+    if (document.getElementById("filterZona")) document.getElementById("filterZona").value = "";
 
     aplicarFiltros();
 }
@@ -257,13 +264,12 @@ function actualizarKPIs() {
     let completadas = 0;
     let noRealizadas = 0;
     let rguTotal = 0;
-    let extensores = 0;
 
     filteredData.forEach(item => {
-        if (item.Estado === "Completado") completadas++;
-        if (item.Estado === "No Realizada") noRealizadas++;
+        const est = (item.Estado || "").toString().trim().toLowerCase();
+        if (est === "completado") completadas++;
+        if (est === "no realizada") noRealizadas++;
         rguTotal += Number(item.RGU) || 0;
-        extensores += (Number(item.Cantidad_Exte) || 0) + (Number(item.Cantidad_Plar) || 0);
     });
 
     const efectividadVal = completadas + noRealizadas > 0
@@ -275,7 +281,6 @@ function actualizarKPIs() {
     if (document.getElementById("noRealizadas")) document.getElementById("noRealizadas").innerText = noRealizadas;
     if (document.getElementById("efectividad")) document.getElementById("efectividad").innerText = efectividadVal;
     if (document.getElementById("rguTotal")) document.getElementById("rguTotal").innerText = rguTotal.toFixed(1);
-    if (document.getElementById("extensores")) document.getElementById("extensores").innerText = extensores;
 }
 
 // ==========================================
@@ -321,14 +326,6 @@ function actualizarGraficos() {
     crearGraficoDuracion();
 }
 
-const ordenMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-const ordenMesesCompletos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-// ==========================================
-// RENDERIZADO DE LOS 3 GRÁFICOS (CORREGIDO)
-// ==========================================
-
-// --- GRÁFICO 1: PRODUCCIÓN GENERAL MENSUAL ---
 function crearGraficoProduccion() {
     const agrupar = {};
     ordenMeses.forEach(m => agrupar[m] = { completados: 0, noRealizadas: 0 });
@@ -337,8 +334,9 @@ function crearGraficoProduccion() {
         const f = obtenerFechaObjeto(item);
         if (!f) return;
         const mNom = ordenMeses[f.getMonth()];
-        if (item.Estado === "Completado") agrupar[mNom].completados++;
-        if (item.Estado === "No Realizada") agrupar[mNom].noRealizadas++;
+        const est = (item.Estado || "").toString().trim().toLowerCase();
+        if (est === "completado") agrupar[mNom].completados++;
+        if (est === "no realizada") agrupar[mNom].noRealizadas++;
     });
 
     const porcentajes = ordenMeses.map(m => {
@@ -363,7 +361,7 @@ function crearGraficoProduccion() {
                 tension: 0.2,
                 spanGaps: true,
                 pointRadius: 3,
-                clip: false, // <-- IMPORTANTE: evita cortar puntos y datalabels que sobresalgan
+                clip: false,
                 datalabels: {
                     anchor: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
                     align: context => (context.dataIndex % 2 === 0 ? 'top' : 'bottom'),
@@ -377,7 +375,7 @@ function crearGraficoProduccion() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 35, bottom: 15, left: 20, right: 20 } }, // Aumentado padding top
+            layout: { padding: { top: 35, bottom: 15, left: 20, right: 20 } },
             plugins: { legend: { display: false } },
             scales: {
                 x: {
@@ -386,14 +384,13 @@ function crearGraficoProduccion() {
                 },
                 y: {
                     display: false,
-                    grace: '50%' // <-- Opciones dinámicas: añade un 10% de margen arriba
+                    grace: '20%'
                 }
             }
         }
     });
 }
 
-// --- GRÁFICO 2: PROMEDIO GENERAL HISTÓRICO ---
 function crearGraficoRGU() {
     const agrupar = {};
     ordenMeses.forEach(m => agrupar[m] = { sumaRGU: 0, completados: 0 });
@@ -402,8 +399,9 @@ function crearGraficoRGU() {
         const f = obtenerFechaObjeto(item);
         if (!f) return;
         const mNom = ordenMeses[f.getMonth()];
+        const est = (item.Estado || "").toString().trim().toLowerCase();
 
-        if (agrupar[mNom] && item.Estado === "Completado") {
+        if (agrupar[mNom] && est === "completado") {
             agrupar[mNom].sumaRGU += Number(item.RGU) || 0;
             agrupar[mNom].completados++;
         }
@@ -416,7 +414,7 @@ function crearGraficoRGU() {
     });
 
     const VALOR_META = 2.0;
-    const metaArray = promedios.map(v => v !== null ? VALOR_META : null);
+    const metaArray = ordenMeses.map(() => VALOR_META); // Muestra la línea de meta fija
 
     const canvas = document.getElementById("actividadChart");
     if (!canvas) return;
@@ -436,7 +434,7 @@ function crearGraficoRGU() {
                     tension: 0.2,
                     spanGaps: true,
                     pointRadius: 3,
-                    clip: false, // <-- Evita cortes de texto
+                    clip: false,
                     datalabels: {
                         anchor: 'start',
                         align: 'bottom',
@@ -485,14 +483,13 @@ function crearGraficoRGU() {
                 y: {
                     display: false,
                     beginAtZero: true,
-                    grace: '50%' // <-- Margen automático para que no choque arriba
+                    grace: '20%'
                 }
             }
         }
     });
 }
 
-// --- GRÁFICO 3: DURACIÓN PROMEDIO POR MES ---
 function crearGraficoDuracion() {
     const agrupar = {};
     ordenMeses.forEach(m => agrupar[m] = { sumaMinutos: 0, conteo: 0 });
@@ -506,10 +503,11 @@ function crearGraficoDuracion() {
         const finRaw = item.Fin || item.FIN || item.Hora_Fin;
 
         let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
-
         if (difMin === null || difMin < 0) difMin = 0;
 
-        if (agrupar[mNom] && item.Estado === "Completado" && difMin < 720) {
+        const est = (item.Estado || "").toString().trim().toLowerCase();
+
+        if (agrupar[mNom] && est === "completado" && difMin < 720) {
             agrupar[mNom].sumaMinutos += difMin;
             agrupar[mNom].conteo++;
         }
@@ -537,10 +535,10 @@ function crearGraficoDuracion() {
                 tension: 0.2,
                 spanGaps: true,
                 pointRadius: 3,
-                clip: false, // <-- Evita recortar etiquetas altas
+                clip: false,
                 datalabels: {
-                    anchor: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
-                    align: context => (context.dataIndex % 2 === 0 ? 'top' : 'bottom'),
+                    anchor: context => (context.dataIndex % 2 === 0 ? 'top' : 'bottom'),
+                    align: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
                     offset: 4,
                     color: '#1d2a57',
                     font: { weight: 'bold', size: 10 },
@@ -560,7 +558,7 @@ function crearGraficoDuracion() {
                 },
                 y: {
                     display: false,
-                    grace: '50%' // <-- Otorga margen superior en caso de picos de tiempo
+                    grace: '20%'
                 }
             }
         }
