@@ -217,7 +217,7 @@ function aplicarFiltros() {
     filteredData = rawExcelData.filter(item => {
         const fechaObj = obtenerFechaObjeto(item);
         const itemAno = fechaObj ? fechaObj.getFullYear().toString() : "";
-        
+
         // 2. Obtener el nombre corto del mes (Ene, Feb, Mar...)
         const itemMes = fechaObj ? ordenMeses[fechaObj.getMonth()] : "";
 
@@ -324,6 +324,10 @@ function actualizarGraficos() {
 const ordenMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const ordenMesesCompletos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
+// ==========================================
+// RENDERIZADO DE LOS 3 GRÁFICOS (CORREGIDO)
+// ==========================================
+
 // --- GRÁFICO 1: PRODUCCIÓN GENERAL MENSUAL ---
 function crearGraficoProduccion() {
     const agrupar = {};
@@ -359,9 +363,10 @@ function crearGraficoProduccion() {
                 tension: 0.2,
                 spanGaps: true,
                 pointRadius: 3,
+                clip: false, // <-- IMPORTANTE: evita cortar puntos y datalabels que sobresalgan
                 datalabels: {
-                    align: 'top',
-                    anchor: 'end',
+                    anchor: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
+                    align: context => (context.dataIndex % 2 === 0 ? 'top' : 'bottom'),
                     offset: 4,
                     color: '#1d2a57',
                     font: { weight: 'bold', size: 10 },
@@ -372,14 +377,17 @@ function crearGraficoProduccion() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 25, bottom: 15, left: 15, right: 15 } },
+            layout: { padding: { top: 35, bottom: 15, left: 20, right: 20 } }, // Aumentado padding top
             plugins: { legend: { display: false } },
             scales: {
                 x: {
                     grid: { display: false },
                     ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
                 },
-                y: { display: false, min: 40, max: 100 }
+                y: {
+                    display: false,
+                    grace: '50%' // <-- Opciones dinámicas: añade un 10% de margen arriba
+                }
             }
         }
     });
@@ -428,9 +436,10 @@ function crearGraficoRGU() {
                     tension: 0.2,
                     spanGaps: true,
                     pointRadius: 3,
+                    clip: false, // <-- Evita cortes de texto
                     datalabels: {
-                        align: 'bottom',
                         anchor: 'start',
+                        align: 'bottom',
                         offset: 4,
                         color: '#1d2a57',
                         font: { weight: 'bold', size: 10 },
@@ -443,8 +452,10 @@ function crearGraficoRGU() {
                     borderColor: "#facc15",
                     backgroundColor: "#facc15",
                     borderWidth: 1.5,
+                    tension: 0,
                     spanGaps: true,
                     pointRadius: 2.5,
+                    clip: false,
                     datalabels: { display: false }
                 }
             ]
@@ -452,7 +463,7 @@ function crearGraficoRGU() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 25, bottom: 15, left: 15, right: 15 } },
+            layout: { padding: { top: 35, bottom: 20, left: 20, right: 20 } },
             plugins: {
                 legend: {
                     display: true,
@@ -471,7 +482,11 @@ function crearGraficoRGU() {
                     grid: { display: false },
                     ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
                 },
-                y: { display: false, min: 0, max: 3.5 }
+                y: {
+                    display: false,
+                    beginAtZero: true,
+                    grace: '50%' // <-- Margen automático para que no choque arriba
+                }
             }
         }
     });
@@ -522,27 +537,31 @@ function crearGraficoDuracion() {
                 tension: 0.2,
                 spanGaps: true,
                 pointRadius: 3,
+                clip: false, // <-- Evita recortar etiquetas altas
                 datalabels: {
-                    align: 'top',
-                    anchor: 'end',
+                    anchor: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
+                    align: context => (context.dataIndex % 2 === 0 ? 'top' : 'bottom'),
                     offset: 4,
                     color: '#1d2a57',
                     font: { weight: 'bold', size: 10 },
-                    formatter: v => (v !== null && v !== undefined) ? v + ' m' : ''
+                    formatter: v => (v !== null && v !== undefined) ? v + ' min' : ''
                 }
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 35, bottom: 15, left: 15, right: 15 } },
+            layout: { padding: { top: 40, bottom: 15, left: 20, right: 20 } },
             plugins: { legend: { display: false } },
             scales: {
                 x: {
                     grid: { display: false },
                     ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
                 },
-                y: { display: false, min: 40 }
+                y: {
+                    display: false,
+                    grace: '50%' // <-- Otorga margen superior en caso de picos de tiempo
+                }
             }
         }
     });
