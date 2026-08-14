@@ -268,24 +268,17 @@ function actualizarKPIs() {
     const total = filteredData.length;
     let completadas = 0;
     let noRealizadas = 0;
-    let rguTotalSum = 0;
     let duracionTotalSum = 0;
     let duracionConteo = 0;
+    
+    const agruparTecnicosKPI = {};
 
     filteredData.forEach(item => {
         const est = (item.Estado || "").toString().trim().toLowerCase();
         if (est === "completado") completadas++;
         if (est === "no realizada") noRealizadas++;
 
-        let rguRaw = item.RGU ?? item.rgu ?? 0;
-        if (typeof rguRaw === 'string') {
-            rguRaw = rguRaw.replace(',', '.').trim();
-        }
-        const rguNum = parseFloat(rguRaw);
-        if (!isNaN(rguNum)) {
-            rguTotalSum += rguNum;
-        }
-
+        // Cálculo de duración
         const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
         const finRaw = item.Fin || item.FIN || item.Hora_Fin;
         let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
@@ -294,7 +287,53 @@ function actualizarKPIs() {
             duracionTotalSum += difMin;
             duracionConteo++;
         }
+
+        // Agrupación RGU por Técnico y Día (solo órdenes completadas)
+        if (est === "completado") {
+            const f = obtenerFechaObjeto(item);
+            const tecnico = (item.Tecnico || "").toString().trim();
+
+            if (f && tecnico) {
+                const diaKey = `${f.getFullYear()}-${(f.getMonth() + 1).toString().padStart(2, '0')}-${f.getDate().toString().padStart(2, '0')}`;
+                
+                let rguRaw = item.RGU ?? item.rgu ?? 0;
+                if (typeof rguRaw === 'string') {
+                    rguRaw = rguRaw.replace(',', '.').trim();
+                }
+                const rguNum = parseFloat(rguRaw) || 0;
+
+                if (!agruparTecnicosKPI[tecnico]) agruparTecnicosKPI[tecnico] = {};
+                if (!agruparTecnicosKPI[tecnico][diaKey]) agruparTecnicosKPI[tecnico][diaKey] = 0;
+
+                agruparTecnicosKPI[tecnico][diaKey] += rguNum;
+            }
+        }
     });
+
+    // Cálculo del promedio RGU (Técnico -> Días trabajados -> Promedio general)
+    const tecsKeys = Object.keys(agruparTecnicosKPI);
+    let rguPromedio = 0;
+
+    if (tecsKeys.length > 0) {
+        let sumaPromediosTecnicos = 0;
+
+        tecsKeys.forEach(tec => {
+            const diasObj = agruparTecnicosKPI[tec];
+            const diasKeys = Object.keys(diasObj);
+
+            let rguTotalTecnico = 0;
+            diasKeys.forEach(dia => {
+                rguTotalTecnico += diasObj[dia];
+            });
+
+            // Promedio diario del técnico entre sus días trabajados
+            const promDiarioTecnico = rguTotalTecnico / diasKeys.length;
+            sumaPromediosTecnicos += promDiarioTecnico;
+        });
+
+        // Promedio general de los técnicos activos
+        rguPromedio = sumaPromediosTecnicos / tecsKeys.length;
+    }
 
     // Cálculos de porcentajes
     const pctCompVal = total > 0 ? ((completadas / total) * 100).toFixed(1) + "%" : "0%";
@@ -304,7 +343,6 @@ function actualizarKPIs() {
         ? ((completadas / (completadas + noRealizadas)) * 100).toFixed(1) + "%"
         : "0%";
 
-    const rguPromedio = completadas > 0 ? (rguTotalSum / completadas) : 0;
     const duracionPromedio = duracionConteo > 0 ? Math.round(duracionTotalSum / duracionConteo) : 0;
 
     // Renderizar datos en los cuadrados
