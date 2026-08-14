@@ -180,7 +180,7 @@ function poblarFiltros(data) {
 
     const selectAno = document.getElementById("filterAno");
     if (selectAno && selectAno.options.length > 0) {
-        
+
         // Si la primera opción dice "Todos" o su valor está vacío, la eliminamos
         if (selectAno.options[0].text.toLowerCase().includes("todos") || selectAno.options[0].value === "") {
             selectAno.remove(0);
@@ -270,7 +270,7 @@ function actualizarKPIs() {
     let noRealizadas = 0;
     let duracionTotalSum = 0;
     let duracionConteo = 0;
-    
+
     const agruparTecnicosKPI = {};
 
     filteredData.forEach(item => {
@@ -295,7 +295,7 @@ function actualizarKPIs() {
 
             if (f && tecnico) {
                 const diaKey = `${f.getFullYear()}-${(f.getMonth() + 1).toString().padStart(2, '0')}-${f.getDate().toString().padStart(2, '0')}`;
-                
+
                 let rguRaw = item.RGU ?? item.rgu ?? 0;
                 if (typeof rguRaw === 'string') {
                     rguRaw = rguRaw.replace(',', '.').trim();
@@ -326,12 +326,10 @@ function actualizarKPIs() {
                 rguTotalTecnico += diasObj[dia];
             });
 
-            // Promedio diario del técnico entre sus días trabajados
             const promDiarioTecnico = rguTotalTecnico / diasKeys.length;
             sumaPromediosTecnicos += promDiarioTecnico;
         });
 
-        // Promedio general de los técnicos activos
         rguPromedio = sumaPromediosTecnicos / tecsKeys.length;
     }
 
@@ -343,11 +341,15 @@ function actualizarKPIs() {
         ? ((completadas / (completadas + noRealizadas)) * 100).toFixed(1) + "%"
         : "0%";
 
-    const duracionPromedio = duracionConteo > 0 ? Math.round(duracionTotalSum / duracionConteo) : 0;
+    // Conversión de minutos a formato hh:mm
+    const duracionPromedioMin = duracionConteo > 0 ? Math.round(duracionTotalSum / duracionConteo) : 0;
+    const hrs = Math.floor(duracionPromedioMin / 60);
+    const mins = duracionPromedioMin % 60;
+    const duracionFormateada = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 
     // Renderizar datos en los cuadrados
     if (document.getElementById("totalOrdenes")) document.getElementById("totalOrdenes").innerText = total;
-    
+
     if (document.getElementById("completadas")) document.getElementById("completadas").innerText = completadas;
     if (document.getElementById("pctCompletadas")) document.getElementById("pctCompletadas").innerText = pctCompVal;
 
@@ -363,7 +365,7 @@ function actualizarKPIs() {
 
     const durElem = document.getElementById("duracionPromedio");
     if (durElem) {
-        durElem.innerText = duracionPromedio + " min";
+        durElem.innerText = duracionFormateada;
     }
 
     renderizarMiniGraficoEfectividad(completadas, noRealizadas);
@@ -696,9 +698,13 @@ function crearGraficoDuracion() {
                     offset: 4,
                     color: '#172554',
                     font: { weight: 'bold', size: 10, family: 'Segoe UI, sans-serif' },
-                    formatter: v => (v !== null && v !== undefined) ? v + ' min' : ''
-                }
-            }]
+                    formatter: function (value) {
+                        if (value === null || value === undefined) return '';
+                        const hrs = Math.floor(value / 60);
+                        const mins = Math.round(value % 60);
+                        return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+                    }}
+                }]
         },
         options: {
             responsive: true,
