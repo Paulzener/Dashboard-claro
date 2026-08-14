@@ -335,6 +335,10 @@ function actualizarGraficos() {
     crearGraficoDuracion();
 }
 
+/////////////////////////////////////////
+// GRAFICO N° 1
+/////////////////////////////////////////
+
 function crearGraficoProduccion() {
     const agrupar = {};
     ordenMeses.forEach(m => agrupar[m] = { completados: 0, noRealizadas: 0 });
@@ -358,7 +362,7 @@ function crearGraficoProduccion() {
     if (estadoChartInstance) estadoChartInstance.destroy();
 
     estadoChartInstance = new Chart(canvas.getContext("2d"), {
-        type: "line", // Gráfico puramente de línea (sin barras de fondo)
+        type: "line",
         data: {
             labels: ordenMeses,
             datasets: [{
@@ -367,20 +371,20 @@ function crearGraficoProduccion() {
                 borderColor: "#1d2a57",
                 backgroundColor: "#1d2a57",
                 borderWidth: 2.5,
-                tension: 0.2, // Curvatura suave elegante
+                tension: 0.2,
                 spanGaps: true,
                 pointRadius: 4,
-                pointBackgroundColor: "#ffffff", // Puntos blancos estilizados
+                pointBackgroundColor: "#ffffff",
                 pointBorderColor: "#1d2a57",
                 pointBorderWidth: 2,
                 pointHoverRadius: 6,
                 datalabels: {
-                    anchor: 'end',
-                    align: 'top',
+                    anchor: context => (context.dataIndex % 2 === 0 ? 'top' : 'bottom'),
+                    align: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
                     offset: 6,
                     color: '#1d2a57',
-                    font: { 
-                        size: 11, 
+                    font: {
+                        size: 11,
                         weight: 'bold',
                         family: 'Segoe UI, sans-serif'
                     },
@@ -400,26 +404,30 @@ function crearGraficoProduccion() {
             scales: {
                 x: {
                     grid: { display: false },
-                    border: { display: false }, // Quita la línea horizontal sobre las letras
-                    ticks: { 
-                        font: { 
-                            size: 12, 
-                            weight: '600', 
-                            family: 'Segoe UI, sans-serif' 
-                        },
-                        color: '#475569', // Color gris oscuro moderno para los meses
-                        padding: 8
+                    border: { display: false },
+                    ticks: {
+                        color: '#1e293b',
+                        padding: 8,
+                        font: {
+                            size: 12,
+                            weight: '600',
+                            family: 'Segoe UI, sans-serif'
+                        }
                     }
                 },
                 y: {
-                    display: false, // Eje Y oculto para diseño limpio
-                    min: 40,
-                    max: 105
+                    display: false,
+                    beginAtZero: true,
+                    grace: '20%'
                 }
             }
         }
     });
 }
+
+/////////////////////////////////////////
+// GRAFICO N° 2
+/////////////////////////////////////////
 
 function crearGraficoRGU() {
     const agrupar = {};
@@ -472,7 +480,7 @@ function crearGraficoRGU() {
                         align: 'bottom',
                         offset: 4,
                         color: '#1d2a57',
-                        font: { weight: 'bold', size: 10 },
+                        font: { weight: 'bold', size: 11 },
                         formatter: v => v !== null ? v.toString().replace('.', ',') : ''
                     }
                 },
@@ -494,12 +502,21 @@ function crearGraficoRGU() {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { top: 25, bottom: 0, left: 10, right: 10 }
+                padding: { top: 25, bottom: 5, left: 10, right: 10 }
             },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
+                    border: { display: false },
+                    ticks: {
+                        color: '#1e293b',
+                        padding: 8,
+                        font: {
+                            size: 12,
+                            weight: '600',
+                            family: 'Segoe UI, sans-serif'
+                        }
+                    }
                 },
                 y: {
                     display: false,
@@ -510,6 +527,10 @@ function crearGraficoRGU() {
         }
     });
 }
+
+/////////////////////////////////////////
+// GRAFICO N° 3
+/////////////////////////////////////////
 
 function crearGraficoDuracion() {
     const agrupar = {};
@@ -571,13 +592,22 @@ function crearGraficoDuracion() {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { top: 25, bottom: 0, left: 10, right: 10 }
+                padding: { top: 25, bottom: 5, left: 10, right: 10 }
             },
             plugins: { legend: { display: false } },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 10 } }
+                    border: { display: false },
+                    ticks: {
+                        color: '#1e293b',
+                        padding: 8,
+                        font: {
+                            size: 12,
+                            weight: '600',
+                            family: 'Segoe UI, sans-serif'
+                        }
+                    }
                 },
                 y: {
                     display: false,
