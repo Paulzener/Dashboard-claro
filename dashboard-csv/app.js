@@ -168,22 +168,25 @@ function poblarFiltros(data) {
 
     const anosOrdenados = Array.from(anos).sort((a, b) => b - a);
 
-    llenarSelect("filterAno", anosOrdenados);
+    // Llenar selectores normales con opción por defecto ("Todos")
     llenarSelect("filterEstado", estados);
     llenarSelect("filterActividad", actividades);
     llenarSelect("filterCiudad", ciudades);
     llenarSelect("filterZona", zonas);
     llenarSelect("filterMes", ordenMeses);
 
+    // Llenar select de Año exclusivamente con los años (sin opción "Todos")
     const selectAno = document.getElementById("filterAno");
-    if (selectAno && selectAno.options.length > 0) {
-        
-        // Si la primera opción dice "Todos" o su valor está vacío, la eliminamos
-        if (selectAno.options[0].text.toLowerCase().includes("todos") || selectAno.options[0].value === "") {
-            selectAno.remove(0);
-        }
+    if (selectAno) {
+        selectAno.innerHTML = "";
+        anosOrdenados.forEach(ano => {
+            const opt = document.createElement("option");
+            opt.value = ano;
+            opt.textContent = ano;
+            selectAno.appendChild(opt);
+        });
 
-        // Seleccionar por defecto el año más reciente
+        // Seleccionar automáticamente el año más reciente por defecto
         if (anosOrdenados.length > 0) {
             selectAno.value = anosOrdenados[0];
         }
@@ -241,7 +244,13 @@ function aplicarFiltros() {
 }
 
 function limpiarFiltros() {
-    if (document.getElementById("filterAno")) document.getElementById("filterAno").value = "";
+    const selectAno = document.getElementById("filterAno");
+    if (selectAno && selectAno.options.length > 0) {
+        // Selecciona la primera opción (el año más reciente)
+        selectAno.selectedIndex = 0; 
+    }
+
+    // Restablece el resto de selectores a su valor inicial ("Todos" / "")
     if (document.getElementById("filterEstado")) document.getElementById("filterEstado").value = "";
     if (document.getElementById("filterActividad")) document.getElementById("filterActividad").value = "";
     if (document.getElementById("filterCiudad")) document.getElementById("filterCiudad").value = "";
