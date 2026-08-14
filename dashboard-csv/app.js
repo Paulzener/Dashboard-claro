@@ -8,7 +8,7 @@ let filteredData = [];
 let estadoChartInstance = null;
 let actividadChartInstance = null;
 let duracionChartInstance = null;
-let miniEfectividadChartInstance = null; // <-- RECUPERADO
+let miniEfectividadChartInstance = null;
 let miniDuracionChartInstance = null;
 
 const ordenMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -140,6 +140,13 @@ function mostrarSecciones() {
     document.getElementById("kpis")?.classList.remove("hidden");
     document.getElementById("charts")?.classList.remove("hidden");
     document.getElementById("tableSection")?.classList.remove("hidden");
+
+    // MOSTRAR EL BOTÓN DE DESCARGA SOLO CUANDO SE CARGA EL ARCHIVO:
+    const btnDescargar = document.getElementById("btnDescargar");
+    if (btnDescargar) {
+        btnDescargar.classList.remove("hidden");
+        btnDescargar.style.display = "inline-block";
+    }
 }
 
 // ==========================================
@@ -174,19 +181,15 @@ function poblarFiltros(data) {
     llenarSelect("filterActividad", actividades);
     llenarSelect("filterCiudad", ciudades);
     llenarSelect("filterZona", zonas);
-    llenarSelect("filterMes", ordenMeses);
 
     llenarSelectMes();
 
     const selectAno = document.getElementById("filterAno");
     if (selectAno && selectAno.options.length > 0) {
-
-        // Si la primera opción dice "Todos" o su valor está vacío, la eliminamos
         if (selectAno.options[0].text.toLowerCase().includes("todos") || selectAno.options[0].value === "") {
             selectAno.remove(0);
         }
 
-        // Seleccionar por defecto el año más reciente
         if (anosOrdenados.length > 0) {
             selectAno.value = anosOrdenados[0];
         }
@@ -198,8 +201,6 @@ function llenarSelect(id, setValores) {
     if (!select) return;
 
     const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
-    if (!select.options[0]) {
-    }
 
     select.innerHTML = "";
     select.appendChild(optionDefault);
@@ -208,6 +209,23 @@ function llenarSelect(id, setValores) {
         const opt = document.createElement("option");
         opt.value = val;
         opt.textContent = val;
+        select.appendChild(opt);
+    });
+}
+
+function llenarSelectMes() {
+    const select = document.getElementById("filterMes");
+    if (!select) return;
+
+    const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
+
+    select.innerHTML = "";
+    select.appendChild(optionDefault);
+
+    ordenMeses.forEach((mesCorto, index) => {
+        const opt = document.createElement("option");
+        opt.value = mesCorto;
+        opt.textContent = ordenMesesCompletos[index];
         select.appendChild(opt);
     });
 }
@@ -246,7 +264,7 @@ function aplicarFiltros() {
 function limpiarFiltros() {
     const selectAno = document.getElementById("filterAno");
     if (selectAno && selectAno.options.length > 0) {
-        selectAno.selectedIndex = 0; // Selecciona el año más reciente (primera opción disponible)
+        selectAno.selectedIndex = 0;
     }
 
     if (document.getElementById("filterEstado")) document.getElementById("filterEstado").value = "";
@@ -278,7 +296,6 @@ function actualizarKPIs() {
         if (est === "completado") completadas++;
         if (est === "no realizada") noRealizadas++;
 
-        // Cálculo de duración
         const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
         const finRaw = item.Fin || item.FIN || item.Hora_Fin;
         let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
@@ -288,7 +305,6 @@ function actualizarKPIs() {
             duracionConteo++;
         }
 
-        // Agrupación RGU por Técnico y Día (solo órdenes completadas)
         if (est === "completado") {
             const f = obtenerFechaObjeto(item);
             const tecnico = (item.Tecnico || "").toString().trim();
@@ -310,7 +326,6 @@ function actualizarKPIs() {
         }
     });
 
-    // Cálculo del promedio RGU (Técnico -> Días trabajados -> Promedio general)
     const tecsKeys = Object.keys(agruparTecnicosKPI);
     let rguPromedio = 0;
 
@@ -333,7 +348,6 @@ function actualizarKPIs() {
         rguPromedio = sumaPromediosTecnicos / tecsKeys.length;
     }
 
-    // Cálculos de porcentajes
     const pctCompVal = total > 0 ? ((completadas / total) * 100).toFixed(1) + "%" : "0%";
     const pctNoRealVal = total > 0 ? ((noRealizadas / total) * 100).toFixed(1) + "%" : "0%";
 
@@ -341,21 +355,16 @@ function actualizarKPIs() {
         ? ((completadas / (completadas + noRealizadas)) * 100).toFixed(1) + "%"
         : "0%";
 
-    // Conversión de minutos a formato hh:mm
     const duracionPromedioMin = duracionConteo > 0 ? Math.round(duracionTotalSum / duracionConteo) : 0;
     const hrs = Math.floor(duracionPromedioMin / 60);
     const mins = duracionPromedioMin % 60;
     const duracionFormateada = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 
-    // Renderizar datos en los cuadrados
     if (document.getElementById("totalOrdenes")) document.getElementById("totalOrdenes").innerText = total;
-
     if (document.getElementById("completadas")) document.getElementById("completadas").innerText = completadas;
     if (document.getElementById("pctCompletadas")) document.getElementById("pctCompletadas").innerText = pctCompVal;
-
     if (document.getElementById("noRealizadas")) document.getElementById("noRealizadas").innerText = noRealizadas;
     if (document.getElementById("pctNoRealizadas")) document.getElementById("pctNoRealizadas").innerText = pctNoRealVal;
-
     if (document.getElementById("efectividad")) document.getElementById("efectividad").innerText = efectividadVal;
 
     const rguElem = document.getElementById("rguTotal");
@@ -406,7 +415,7 @@ function renderizarTabla() {
 }
 
 // ==========================================
-// RENDERIZADO DE LOS 3 GRÁFICOS
+// RENDERIZADO DE LOS GRÁFICOS
 // ==========================================
 
 function actualizarGraficos() {
@@ -414,10 +423,6 @@ function actualizarGraficos() {
     crearGraficoRGU();
     crearGraficoDuracion();
 }
-
-/////////////////////////////////////////
-// GRAFICO N° 1
-/////////////////////////////////////////
 
 function crearGraficoProduccion() {
     const agrupar = {};
@@ -488,29 +493,16 @@ function crearGraficoProduccion() {
                     ticks: {
                         color: '#1e293b',
                         padding: 8,
-                        font: {
-                            size: 12,
-                            weight: '600',
-                            family: 'Segoe UI, sans-serif'
-                        }
+                        font: { size: 12, weight: '600', family: 'Segoe UI, sans-serif' }
                     }
                 },
-                y: {
-                    display: false,
-                    beginAtZero: true,
-                    grace: '20%'
-                }
+                y: { display: false, beginAtZero: true, grace: '20%' }
             }
         }
     });
 }
 
-/////////////////////////////////////////
-// GRAFICO N° 2
-/////////////////////////////////////////
-
 function crearGraficoRGU() {
-    // 1. Agrupar por Mes -> Técnico -> Día
     const agrupar = {};
     ordenMeses.forEach(m => agrupar[m] = {});
 
@@ -534,14 +526,12 @@ function crearGraficoRGU() {
         if (!agrupar[mNom][tecnico]) agrupar[mNom][tecnico] = {};
         if (!agrupar[mNom][tecnico][diaKey]) agrupar[mNom][tecnico][diaKey] = 0;
 
-        // Suma el RGU diario por técnico
         agrupar[mNom][tecnico][diaKey] += rguNum;
     });
 
-    // 2. Procesar el promedio por técnico y luego el mensual
     const promedios = ordenMeses.map(m => {
         const tecsObj = agrupar[m];
-        const tecsKeys = Object.keys(tecsObj); // Todos los técnicos del mes
+        const tecsKeys = Object.keys(tecsObj);
 
         if (tecsKeys.length === 0) return null;
 
@@ -549,19 +539,17 @@ function crearGraficoRGU() {
 
         tecsKeys.forEach(tec => {
             const diasObj = tecsObj[tec];
-            const diasKeys = Object.keys(diasObj); // Días que efectivamente trabajó el técnico
+            const diasKeys = Object.keys(diasObj);
 
             let rguTotalTecnico = 0;
             diasKeys.forEach(dia => {
                 rguTotalTecnico += diasObj[dia];
             });
 
-            // PASO A: Promedio diario del técnico = (RGU total) / (Días trabajados por el técnico)
             const promDiarioTecnico = rguTotalTecnico / diasKeys.length;
             sumaPromediosTecnicos += promDiarioTecnico;
         });
 
-        // PASO B: Promedio mensual = (Suma de promedios de cada técnico) / (Total de técnicos activos)
         return Number((sumaPromediosTecnicos / tecsKeys.length).toFixed(1));
     });
 
@@ -631,21 +619,6 @@ function crearGraficoRGU() {
     });
 }
 
-
-//1. Agrupa por día: Suma las RGU de cada técnico por cada fecha individual en la que tuvo registros (agrupar[mNom][tecnico][diaKey]).
-
-//2. Promedio individual: Divide el RGU total de cada técnico entre la cantidad de días que efectivamente trabajó ese mes (rguTotalTecnico / diasKeys.length).
-
-//3. Promedio final del mes: Suma los promedios individuales de todo el equipo y los divide entre el número de técnicos activos del mes (sumaPromediosTecnicos / tecsKeys.length).
-
-//4. Renderiza la gráfica: Recorre cada mes en ordenMeses.map(...) y dibuja el valor resultante en el gráfico junto a la línea de meta fijada en 3.0.
-
-
-
-/////////////////////////////////////////
-// GRAFICO N° 3
-/////////////////////////////////////////
-
 function crearGraficoDuracion() {
     const agrupar = {};
     ordenMeses.forEach(m => agrupar[m] = { sumaMinutos: 0, conteo: 0 });
@@ -703,8 +676,9 @@ function crearGraficoDuracion() {
                         const hrs = Math.floor(value / 60);
                         const mins = Math.round(value % 60);
                         return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-                    }}
-                }]
+                    }
+                }
+            }]
         },
         options: {
             responsive: true,
@@ -720,18 +694,10 @@ function crearGraficoDuracion() {
                     ticks: {
                         color: '#1e293b',
                         padding: 8,
-                        font: {
-                            size: 12,
-                            weight: '600',
-                            family: 'Segoe UI, sans-serif'
-                        }
+                        font: { size: 12, weight: '600', family: 'Segoe UI, sans-serif' }
                     }
                 },
-                y: {
-                    display: false,
-                    beginAtZero: true,
-                    max: 160
-                }
+                y: { display: false, beginAtZero: true, max: 160 }
             }
         }
     });
@@ -823,19 +789,29 @@ function renderizarMiniGraficoDuracion() {
     });
 }
 
-function llenarSelectMes() {
-    const select = document.getElementById("filterMes");
-    if (!select) return;
+// Exportar imagen del Dashboard en general
 
-    const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
+async function descargarDashboard() {
+    const contenedor = document.getElementById("dashboardCapture");
 
-    select.innerHTML = "";
-    select.appendChild(optionDefault);
+    if (!contenedor) {
+        alert("No se encontró el contenedor del dashboard para capturar.");
+        return;
+    }
 
-    ordenMeses.forEach((mesCorto, index) => {
-        const opt = document.createElement("option");
-        opt.value = mesCorto; // Mantiene el valor 'Ene', 'Feb', etc. para la lógica de filtrado
-        opt.textContent = ordenMesesCompletos[index]; // Muestra 'Enero', 'Febrero', etc. en el filtro
-        select.appendChild(opt);
-    });
+    try {
+        const canvas = await html2canvas(contenedor, {
+            scale: 2,
+            backgroundColor: "#f8fafc",
+            useCORS: true,
+            logging: false
+        });
+
+        const link = document.createElement("a");
+        link.download = `Dashboard_RGU_${new Date().toISOString().slice(0, 10)}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    } catch (error) {
+        console.error("Error al exportar la imagen:", error);
+    }
 }
