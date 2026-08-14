@@ -470,30 +470,62 @@ function crearGraficoProduccion() {
 /////////////////////////////////////////
 
 function crearGraficoRGU() {
+    // 1. Agrupar por Mes -> Técnico -> Día
     const agrupar = {};
-    ordenMeses.forEach(m => agrupar[m] = { sumaRGU: 0, completados: 0 });
+    ordenMeses.forEach(m => agrupar[m] = {});
 
     filteredData.forEach(item => {
         const f = obtenerFechaObjeto(item);
         if (!f) return;
-        const mNom = ordenMeses[f.getMonth()];
+
         const est = (item.Estado || "").toString().trim().toLowerCase();
+        if (est !== "completado") return;
 
-        if (agrupar[mNom] && est === "completado") {
-            let rguRaw = item.RGU ?? item.rgu ?? 0;
-            if (typeof rguRaw === 'string') rguRaw = rguRaw.replace(',', '.').trim();
-            agrupar[mNom].sumaRGU += Number(rguRaw) || 0;
-            agrupar[mNom].completados++;
-        }
+        const mNom = ordenMeses[f.getMonth()];
+        const diaKey = `${f.getFullYear()}-${(f.getMonth() + 1).toString().padStart(2, '0')}-${f.getDate().toString().padStart(2, '0')}`;
+        const tecnico = (item.Tecnico || "").toString().trim();
+
+        if (!tecnico) return;
+
+        let rguRaw = item.RGU ?? item.rgu ?? 0;
+        if (typeof rguRaw === 'string') rguRaw = rguRaw.replace(',', '.').trim();
+        const rguNum = Number(rguRaw) || 0;
+
+        if (!agrupar[mNom][tecnico]) agrupar[mNom][tecnico] = {};
+        if (!agrupar[mNom][tecnico][diaKey]) agrupar[mNom][tecnico][diaKey] = 0;
+
+        // Suma el RGU diario por técnico
+        agrupar[mNom][tecnico][diaKey] += rguNum;
     });
 
+    // 2. Procesar el promedio por técnico y luego el mensual
     const promedios = ordenMeses.map(m => {
-        return agrupar[m].completados > 0
-            ? Number((agrupar[m].sumaRGU / agrupar[m].completados).toFixed(1))
-            : null;
+        const tecsObj = agrupar[m];
+        const tecsKeys = Object.keys(tecsObj); // Todos los técnicos del mes
+
+        if (tecsKeys.length === 0) return null;
+
+        let sumaPromediosTecnicos = 0;
+
+        tecsKeys.forEach(tec => {
+            const diasObj = tecsObj[tec];
+            const diasKeys = Object.keys(diasObj); // Días que efectivamente trabajó el técnico
+
+            let rguTotalTecnico = 0;
+            diasKeys.forEach(dia => {
+                rguTotalTecnico += diasObj[dia];
+            });
+
+            // PASO A: Promedio diario del técnico = (RGU total) / (Días trabajados por el técnico)
+            const promDiarioTecnico = rguTotalTecnico / diasKeys.length;
+            sumaPromediosTecnicos += promDiarioTecnico;
+        });
+
+        // PASO B: Promedio mensual = (Suma de promedios de cada técnico) / (Total de técnicos activos)
+        return Number((sumaPromediosTecnicos / tecsKeys.length).toFixed(1));
     });
 
-    const VALOR_META = 2.0;
+    const VALOR_META = 3.0;
     const metaArray = ordenMeses.map(() => VALOR_META);
 
     const canvas = document.getElementById("actividadChart");
@@ -541,12 +573,8 @@ function crearGraficoRGU() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            layout: {
-                padding: { top: 25, bottom: 5, left: 10, right: 10 }
-            },
+            plugins: { legend: { display: false } },
+            layout: { padding: { top: 25, bottom: 5, left: 10, right: 10 } },
             scales: {
                 x: {
                     grid: { display: false },
@@ -554,22 +582,25 @@ function crearGraficoRGU() {
                     ticks: {
                         color: '#1e293b',
                         padding: 8,
-                        font: {
-                            size: 12,
-                            weight: '600',
-                            family: 'Segoe UI, sans-serif'
-                        }
+                        font: { size: 12, weight: '600', family: 'Segoe UI, sans-serif' }
                     }
                 },
-                y: {
-                    display: false,
-                    beginAtZero: true,
-                    grace: '20%'
-                }
+                y: { display: false, beginAtZero: true, grace: '20%' }
             }
         }
     });
 }
+
+
+//1. Agrupa por día: Suma las RGU de cada técnico por cada fecha individual en la que tuvo registros (agrupar[mNom][tecnico][diaKey]).
+
+//2. Promedio individual: Divide el RGU total de cada técnico entre la cantidad de días que efectivamente trabajó ese mes (rguTotalTecnico / diasKeys.length).
+
+//3. Promedio final del mes: Suma los promedios individuales de todo el equipo y los divide entre el número de técnicos activos del mes (sumaPromediosTecnicos / tecsKeys.length).
+
+//4. Renderiza la gráfica: Recorre cada mes en ordenMeses.map(...) y dibuja el valor resultante en el gráfico junto a la línea de meta fijada en 3.0.
+
+
 
 /////////////////////////////////////////
 // GRAFICO N° 3
