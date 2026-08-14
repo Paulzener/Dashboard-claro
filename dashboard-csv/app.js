@@ -9,6 +9,7 @@ let estadoChartInstance = null;
 let actividadChartInstance = null;
 let duracionChartInstance = null;
 let miniEfectividadChartInstance = null; // <-- RECUPERADO
+let miniDuracionChartInstance = null;
 
 const ordenMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const ordenMesesCompletos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -168,25 +169,24 @@ function poblarFiltros(data) {
 
     const anosOrdenados = Array.from(anos).sort((a, b) => b - a);
 
-    // Llenar selectores normales con opción por defecto ("Todos")
+    llenarSelect("filterAno", anosOrdenados);
     llenarSelect("filterEstado", estados);
     llenarSelect("filterActividad", actividades);
     llenarSelect("filterCiudad", ciudades);
     llenarSelect("filterZona", zonas);
     llenarSelect("filterMes", ordenMeses);
 
-    // Llenar select de Año exclusivamente con los años (sin opción "Todos")
-    const selectAno = document.getElementById("filterAno");
-    if (selectAno) {
-        selectAno.innerHTML = "";
-        anosOrdenados.forEach(ano => {
-            const opt = document.createElement("option");
-            opt.value = ano;
-            opt.textContent = ano;
-            selectAno.appendChild(opt);
-        });
+    llenarSelectMes();
 
-        // Seleccionar automáticamente el año más reciente por defecto
+    const selectAno = document.getElementById("filterAno");
+    if (selectAno && selectAno.options.length > 0) {
+        
+        // Si la primera opción dice "Todos" o su valor está vacío, la eliminamos
+        if (selectAno.options[0].text.toLowerCase().includes("todos") || selectAno.options[0].value === "") {
+            selectAno.remove(0);
+        }
+
+        // Seleccionar por defecto el año más reciente
         if (anosOrdenados.length > 0) {
             selectAno.value = anosOrdenados[0];
         }
@@ -246,11 +246,9 @@ function aplicarFiltros() {
 function limpiarFiltros() {
     const selectAno = document.getElementById("filterAno");
     if (selectAno && selectAno.options.length > 0) {
-        // Selecciona la primera opción (el año más reciente)
-        selectAno.selectedIndex = 0; 
+        selectAno.selectedIndex = 0; // Selecciona el año más reciente (primera opción disponible)
     }
 
-    // Restablece el resto de selectores a su valor inicial ("Todos" / "")
     if (document.getElementById("filterEstado")) document.getElementById("filterEstado").value = "";
     if (document.getElementById("filterActividad")) document.getElementById("filterActividad").value = "";
     if (document.getElementById("filterCiudad")) document.getElementById("filterCiudad").value = "";
@@ -271,6 +269,8 @@ function actualizarKPIs() {
     let completadas = 0;
     let noRealizadas = 0;
     let rguTotalSum = 0;
+    let duracionTotalSum = 0;
+    let duracionConteo = 0;
 
     filteredData.forEach(item => {
         const est = (item.Estado || "").toString().trim().toLowerCase();
@@ -281,22 +281,41 @@ function actualizarKPIs() {
         if (typeof rguRaw === 'string') {
             rguRaw = rguRaw.replace(',', '.').trim();
         }
-
         const rguNum = parseFloat(rguRaw);
         if (!isNaN(rguNum)) {
             rguTotalSum += rguNum;
         }
+
+        const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
+        const finRaw = item.Fin || item.FIN || item.Hora_Fin;
+        let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
+
+        if (est === "completado" && difMin !== null && difMin >= 0 && difMin < 720) {
+            duracionTotalSum += difMin;
+            duracionConteo++;
+        }
     });
+
+    // Cálculos de porcentajes
+    const pctCompVal = total > 0 ? ((completadas / total) * 100).toFixed(1) + "%" : "0%";
+    const pctNoRealVal = total > 0 ? ((noRealizadas / total) * 100).toFixed(1) + "%" : "0%";
 
     const efectividadVal = (completadas + noRealizadas) > 0
         ? ((completadas / (completadas + noRealizadas)) * 100).toFixed(1) + "%"
         : "0%";
 
     const rguPromedio = completadas > 0 ? (rguTotalSum / completadas) : 0;
+    const duracionPromedio = duracionConteo > 0 ? Math.round(duracionTotalSum / duracionConteo) : 0;
 
+    // Renderizar datos en los cuadrados
     if (document.getElementById("totalOrdenes")) document.getElementById("totalOrdenes").innerText = total;
+    
     if (document.getElementById("completadas")) document.getElementById("completadas").innerText = completadas;
+    if (document.getElementById("pctCompletadas")) document.getElementById("pctCompletadas").innerText = pctCompVal;
+
     if (document.getElementById("noRealizadas")) document.getElementById("noRealizadas").innerText = noRealizadas;
+    if (document.getElementById("pctNoRealizadas")) document.getElementById("pctNoRealizadas").innerText = pctNoRealVal;
+
     if (document.getElementById("efectividad")) document.getElementById("efectividad").innerText = efectividadVal;
 
     const rguElem = document.getElementById("rguTotal");
@@ -304,8 +323,13 @@ function actualizarKPIs() {
         rguElem.innerText = rguPromedio.toFixed(1).replace('.', ',');
     }
 
-    // <-- DIBUJAR MINI GRÁFICO DE KPI
+    const durElem = document.getElementById("duracionPromedio");
+    if (durElem) {
+        durElem.innerText = duracionPromedio + " min";
+    }
+
     renderizarMiniGraficoEfectividad(completadas, noRealizadas);
+    renderizarMiniGraficoDuracion();
 }
 
 // ==========================================
@@ -390,7 +414,7 @@ function crearGraficoProduccion() {
                 tension: 0.2,
                 spanGaps: true,
                 pointRadius: 4,
-                pointBackgroundColor: "#ffffff",
+                pointBackgroundColor: "#1d2a57",
                 pointBorderColor: "#1d2a57",
                 pointBorderWidth: 2,
                 pointHoverRadius: 6,
@@ -667,5 +691,76 @@ function renderizarMiniGraficoEfectividad(completadas, noRealizadas) {
                 datalabels: { display: false }
             }
         }
+    });
+}
+
+function renderizarMiniGraficoDuracion() {
+    const agrupar = {};
+    ordenMeses.forEach(m => agrupar[m] = { sumaMinutos: 0, conteo: 0 });
+
+    filteredData.forEach(item => {
+        const f = obtenerFechaObjeto(item);
+        if (!f) return;
+        const mNom = ordenMeses[f.getMonth()];
+        const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
+        const finRaw = item.Fin || item.FIN || item.Hora_Fin;
+        let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
+        const est = (item.Estado || "").toString().trim().toLowerCase();
+
+        if (agrupar[mNom] && est === "completado" && difMin !== null && difMin >= 0 && difMin < 720) {
+            agrupar[mNom].sumaMinutos += difMin;
+            agrupar[mNom].conteo++;
+        }
+    });
+
+    const dataMensual = ordenMeses.map(m => agrupar[m].conteo > 0 ? Math.round(agrupar[m].sumaMinutos / agrupar[m].conteo) : 0);
+
+    const canvas = document.getElementById("duracionMiniChart");
+    if (!canvas) return;
+
+    if (miniDuracionChartInstance) {
+        miniDuracionChartInstance.destroy();
+    }
+
+    miniDuracionChartInstance = new Chart(canvas.getContext("2d"), {
+        type: "bar",
+        data: {
+            labels: ordenMeses,
+            datasets: [{
+                data: dataMensual,
+                backgroundColor: "#1d2a57",
+                borderRadius: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: true },
+                datalabels: { display: false }
+            },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            }
+        }
+    });
+}
+
+function llenarSelectMes() {
+    const select = document.getElementById("filterMes");
+    if (!select) return;
+
+    const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
+
+    select.innerHTML = "";
+    select.appendChild(optionDefault);
+
+    ordenMeses.forEach((mesCorto, index) => {
+        const opt = document.createElement("option");
+        opt.value = mesCorto; // Mantiene el valor 'Ene', 'Feb', etc. para la lógica de filtrado
+        opt.textContent = ordenMesesCompletos[index]; // Muestra 'Enero', 'Febrero', etc. en el filtro
+        select.appendChild(opt);
     });
 }
