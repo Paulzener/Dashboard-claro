@@ -176,8 +176,17 @@ function poblarFiltros(data) {
     llenarSelect("filterMes", ordenMeses);
 
     const selectAno = document.getElementById("filterAno");
-    if (selectAno && anosOrdenados.length > 0) {
-        selectAno.value = anosOrdenados[0];
+    if (selectAno && selectAno.options.length > 0) {
+        
+        // Si la primera opción dice "Todos" o su valor está vacío, la eliminamos
+        if (selectAno.options[0].text.toLowerCase().includes("todos") || selectAno.options[0].value === "") {
+            selectAno.remove(0);
+        }
+
+        // Seleccionar por defecto el año más reciente
+        if (anosOrdenados.length > 0) {
+            selectAno.value = anosOrdenados[0];
+        }
     }
 }
 
@@ -187,8 +196,6 @@ function llenarSelect(id, setValores) {
 
     const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
     if (!select.options[0]) {
-        optionDefault.value = "";
-        optionDefault.textContent = "Todos";
     }
 
     select.innerHTML = "";
@@ -468,8 +475,8 @@ function crearGraficoRGU() {
                 {
                     label: 'Promedio General',
                     data: promedios,
-                    borderColor: "#1d2a57",
-                    backgroundColor: "#1d2a57",
+                    borderColor: "#172554",
+                    backgroundColor: "#172554",
                     borderWidth: 2,
                     tension: 0,
                     spanGaps: true,
@@ -479,8 +486,8 @@ function crearGraficoRGU() {
                         anchor: 'start',
                         align: 'bottom',
                         offset: 4,
-                        color: '#1d2a57',
-                        font: { weight: 'bold', size: 11 },
+                        color: '#172554',
+                        font: { weight: 'bold', size: 11, family: 'Segoe UI, sans-serif' },
                         formatter: v => v !== null ? v.toString().replace('.', ',') : ''
                     }
                 },
@@ -501,6 +508,9 @@ function crearGraficoRGU() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
             layout: {
                 padding: { top: 25, bottom: 5, left: 10, right: 10 }
             },
@@ -582,8 +592,8 @@ function crearGraficoDuracion() {
                     anchor: context => (context.dataIndex % 2 === 0 ? 'top' : 'bottom'),
                     align: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
                     offset: 4,
-                    color: '#1d2a57',
-                    font: { weight: 'bold', size: 10 },
+                    color: '#172554',
+                    font: { weight: 'bold', size: 10, family: 'Segoe UI, sans-serif' },
                     formatter: v => (v !== null && v !== undefined) ? v + ' min' : ''
                 }
             }]
