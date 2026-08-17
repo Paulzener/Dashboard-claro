@@ -87,13 +87,19 @@ function inicializarMultiselects() {
             container.querySelectorAll('.multiselect-options input[type="checkbox"]').forEach(chk => chk.checked = false);
         });
 
-        // Aplicar selección
+        // Aplicar selección desde un desplegable individual
         btnApply?.addEventListener('click', (e) => {
             e.stopPropagation();
-            const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input[type="checkbox"]:checked'));
+            // Cambiado a input:checked para soportar radio buttons y checkboxes
+            const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input:checked'));
             filtroSelecciones[filterKey] = checkedInputs.map(chk => chk.value);
             actualizarTextoTrigger(container, filterKey);
             menu?.classList.add('hidden');
+
+            // Ocultar sección de filtros
+            document.getElementById('filters')?.classList.remove('is-open');
+            document.getElementById('toggleFiltersBtn')?.classList.remove('active');
+
             aplicarFiltros();
         });
     });
@@ -979,25 +985,25 @@ async function descargarDashboard() {
 }
 
 function aplicarTodosLosFiltros() {
-    // 1. Recorrer cada desplegable y sincronizar las casillas marcadas con el estado global
+    // Se cambia selector a input:checked para incluir checkboxes y radio buttons
     document.querySelectorAll('.custom-multiselect').forEach(container => {
         const filterKey = container.dataset.filterKey;
-        const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input[type="checkbox"]:checked'));
+        const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input:checked'));
         
         filtroSelecciones[filterKey] = checkedInputs.map(chk => chk.value);
         actualizarTextoTrigger(container, filterKey);
     });
 
-    // 2. Cerrar cualquier menú flotante individual que haya quedado abierto
+    // Cerrar menús desplegables abiertos
     document.querySelectorAll('.multiselect-menu').forEach(m => m.classList.add('hidden'));
 
-    // 3. Colapsar la sección principal de filtros y restablecer el botón
+    // Colapsar el contenedor principal de filtros
     const filtersSection = document.getElementById('filters');
     const toggleBtn = document.getElementById('toggleFiltersBtn');
 
     if (filtersSection) filtersSection.classList.remove('is-open');
     if (toggleBtn) toggleBtn.classList.remove('active');
 
-    // 4. Ejecutar el filtrado global de datos y actualizar KPIs/Gráficos
+    // Ejecutar el filtrado con la selección actualizada
     aplicarFiltros();
 }
