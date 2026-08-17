@@ -815,3 +815,19 @@ async function descargarDashboard() {
         console.error("Error al exportar la imagen:", error);
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const toggleBtn = document.getElementById('toggleFiltersBtn');
+  const filtersSection = document.getElementById('filters');
+
+  if (toggleBtn && filtersSection) {
+    toggleBtn.addEventListener('click', () => {
+      // Alterna la clase de despliegue en la sección de filtros
+      filtersSection.classList.toggle('is-open');
+      
+      // Alterna la animación de la flecha en el botón
+      toggleBtn.classList.toggle('active');
+    });
+  }
+});
+
