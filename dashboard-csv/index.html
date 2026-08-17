@@ -35,11 +35,8 @@
             </label>
             <input type="file" id="excelFile" accept=".xlsx, .xls, .csv">
             <span id="fileName">Ningún archivo seleccionado</span>
-            <!-- En la sección upload-section -->
             <button id="btnDescargar" class="hidden" onclick="descargarDashboard()">Descargar Todo (PNG)</button>
         </section>
-
-        
 
         <!-- BOTÓN DESPLEGABLE DE FILTROS -->
         <div class="filters-toggle-wrapper">
@@ -58,50 +55,139 @@
                 </svg>
             </button>
         </div>
+
         <!-- FILTROS -->
         <section id="filters" class="filters hidden">
-            <div>
-                <label>Tipo de actividad</label>
-                <select id="filterActividad">
-                    <option value="">Todos</option>
-                </select>
-            </div>
-            <div class="flex flex-col">
-                <label for="filterZona" class="text-xs font-semibold text-gray-600 mb-1">Zona de trabajo</label>
-                <select id="filterZona"
-                    class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="">Todas</option>
-                </select>
-            </div>
-            <div>
-                <label>Ciudad</label>
-                <select id="filterCiudad">
-                    <option value="">Todas</option>
-                </select>
-            </div>
+            <!-- 1. MULTISELECT TIPO DE ACTIVIDAD -->
             <div class="filter-group">
-                <label for="filterAno">Año:</label>
-                <select id="filterAno"></select>
+                <label>Tipo de actividad</label>
+                <div class="custom-multiselect" id="multiselectActividad" data-filter-key="actividad">
+                    <button type="button" class="multiselect-trigger">
+                        <span class="selected-text">Todos</span>
+                        <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="multiselect-menu hidden">
+                        <div class="multiselect-header">
+                            <button type="button" class="btn-action btn-todos">Todos</button>
+                            <span class="divider">|</span>
+                            <button type="button" class="btn-action btn-limpiar">Limpiar</button>
+                        </div>
+                        <div class="multiselect-options"></div>
+                        <div class="multiselect-footer">
+                            <button type="button" class="btn-apply">Aplicar</button>
+                            <!-- Botones de acción general dentro de #filters -->
+
+
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div>
+
+            <!-- 2. MULTISELECT ZONA DE TRABAJO -->
+            <div class="filter-group">
+                <label>Zona de trabajo</label>
+                <div class="custom-multiselect" id="multiselectZona" data-filter-key="zona">
+                    <button type="button" class="multiselect-trigger">
+                        <span class="selected-text">Todas</span>
+                        <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="multiselect-menu hidden">
+                        <div class="multiselect-header">
+                            <button type="button" class="btn-action btn-todos">Todos</button>
+                            <span class="divider">|</span>
+                            <button type="button" class="btn-action btn-limpiar">Limpiar</button>
+                        </div>
+                        <div class="multiselect-options"></div>
+                        <div class="multiselect-footer">
+                            <button type="button" class="btn-apply">Aplicar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. MULTISELECT CIUDAD -->
+            <div class="filter-group">
+                <label>Ciudad</label>
+                <div class="custom-multiselect" id="multiselectCiudad" data-filter-key="ciudad">
+                    <button type="button" class="multiselect-trigger">
+                        <span class="selected-text">Todas</span>
+                        <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="multiselect-menu hidden">
+                        <div class="multiselect-header">
+                            <button type="button" class="btn-action btn-todos">Todos</button>
+                            <span class="divider">|</span>
+                            <button type="button" class="btn-action btn-limpiar">Limpiar</button>
+                        </div>
+                        <div class="multiselect-options"></div>
+                        <div class="multiselect-footer">
+                            <button type="button" class="btn-apply">Aplicar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. MULTISELECT AÑO -->
+            <div class="filter-group">
+                <label>Año</label>
+                <div class="custom-multiselect" id="multiselectAno" data-filter-key="ano">
+                    <button type="button" class="multiselect-trigger">
+                        <span class="selected-text">Todos</span>
+                        <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="multiselect-menu hidden">
+                        <div class="multiselect-header">
+                            <button type="button" class="btn-action btn-todos">Todos</button>
+                            <span class="divider">|</span>
+                            <button type="button" class="btn-action btn-limpiar">Limpiar</button>
+                        </div>
+                        <div class="multiselect-options"></div>
+                        <div class="multiselect-footer">
+                            <button type="button" class="btn-apply">Aplicar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. MULTISELECT MES -->
+            <div class="filter-group">
                 <label>Mes</label>
-                <select id="filterMes">
-                    <option value="">Todos los meses</option>
-                    <option value="0">Enero</option>
-                    <option value="1">Febrero</option>
-                    <option value="2">Marzo</option>
-                    <option value="3">Abril</option>
-                    <option value="4">Mayo</option>
-                    <option value="5">Junio</option>
-                    <option value="6">Julio</option>
-                    <option value="7">Agosto</option>
-                    <option value="8">Septiembre</option>
-                    <option value="9">Octubre</option>
-                    <option value="10">Noviembre</option>
-                    <option value="11">Diciembre</option>
-                </select>
+                <div class="custom-multiselect" id="multiselectMes" data-filter-key="mes">
+                    <button type="button" class="multiselect-trigger">
+                        <span class="selected-text">Todos los meses</span>
+                        <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="multiselect-menu hidden">
+                        <div class="multiselect-header">
+                            <button type="button" class="btn-action btn-todos">Todos</button>
+                            <span class="divider">|</span>
+                            <button type="button" class="btn-action btn-limpiar">Limpiar</button>
+                        </div>
+                        <div class="multiselect-options"></div>
+                        <div class="multiselect-footer">
+                            <button type="button" class="btn-apply">Aplicar</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+
             <button id="clearFilters">Limpiar filtros</button>
+            <button id="applyAllFilters" class="btn-apply-all">Aplicar filtros</button>
         </section>
 
         <!-- CONTENEDOR CAPTURABLE (KPIs + GRÁFICOS CON TÍTULOS) -->

@@ -4,6 +4,15 @@
 let rawExcelData = [];
 let filteredData = [];
 
+// Estado global de selecciones para todos los multiselects
+let filtroSelecciones = {
+    actividad: [],
+    zona: [],
+    ciudad: [],
+    ano: [],
+    mes: []
+};
+
 // Instancias globales para destruir y redibujar gráficos
 let estadoChartInstance = null;
 let actividadChartInstance = null;
@@ -25,15 +34,121 @@ document.addEventListener("DOMContentLoaded", () => {
         excelInput.addEventListener("change", cargarArchivoExcel);
     }
 
-    // Eventos para filtros
-    document.getElementById("filterAno")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filterEstado")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filterZona")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filterActividad")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filterCiudad")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filterMes")?.addEventListener("change", aplicarFiltros);
+    // Inicializar interacción de todos los multiselects
+    inicializarMultiselects();
+
+    // Botón general "Limpiar filtros"
     document.getElementById("clearFilters")?.addEventListener("click", limpiarFiltros);
+    // Dentro de document.addEventListener("DOMContentLoaded", () => { ... })
+    document.getElementById("applyAllFilters")?.addEventListener("click", aplicarTodosLosFiltros);
+    // Desplegable de la sección de filtros
+    const toggleBtn = document.getElementById('toggleFiltersBtn');
+    const filtersSection = document.getElementById('filters');
+
+    if (toggleBtn && filtersSection) {
+        toggleBtn.addEventListener('click', () => {
+            filtersSection.classList.toggle('is-open');
+            toggleBtn.classList.toggle('active');
+        });
+    }
 });
+
+// ==========================================
+// LÓGICA DE COMPONENTES MULTISELECT
+// ==========================================
+
+function inicializarMultiselects() {
+    document.querySelectorAll('.custom-multiselect').forEach(container => {
+        const trigger = container.querySelector('.multiselect-trigger');
+        const menu = container.querySelector('.multiselect-menu');
+        const btnTodos = container.querySelector('.btn-todos');
+        const btnLimpiar = container.querySelector('.btn-limpiar');
+        const btnApply = container.querySelector('.btn-apply');
+        const filterKey = container.dataset.filterKey;
+
+        // Abrir/cerrar menú
+        trigger?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.multiselect-menu').forEach(m => {
+                if (m !== menu) m.classList.add('hidden');
+            });
+            menu?.classList.toggle('hidden');
+        });
+
+        // Marcar todos
+        btnTodos?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            container.querySelectorAll('.multiselect-options input[type="checkbox"]').forEach(chk => chk.checked = true);
+        });
+
+        // Limpiar selección actual en menú
+        btnLimpiar?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            container.querySelectorAll('.multiselect-options input[type="checkbox"]').forEach(chk => chk.checked = false);
+        });
+
+        // Aplicar selección
+        btnApply?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input[type="checkbox"]:checked'));
+            filtroSelecciones[filterKey] = checkedInputs.map(chk => chk.value);
+            actualizarTextoTrigger(container, filterKey);
+            menu?.classList.add('hidden');
+            aplicarFiltros();
+        });
+    });
+
+    // Cerrar al hacer clic fuera
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.custom-multiselect')) {
+            document.querySelectorAll('.multiselect-menu').forEach(m => m.classList.add('hidden'));
+        }
+    });
+}
+
+function poblarMultiselect(idContainer, filterKey, items) {
+    const container = document.getElementById(idContainer);
+    if (!container) return;
+    const optionsContainer = container.querySelector('.multiselect-options');
+    if (!optionsContainer) return;
+
+    optionsContainer.innerHTML = '';
+    filtroSelecciones[filterKey] = [];
+
+    items.forEach(item => {
+        const val = typeof item === 'object' ? item.value : item;
+        const text = typeof item === 'object' ? item.text : item;
+
+        filtroSelecciones[filterKey].push(String(val));
+
+        const label = document.createElement('label');
+        label.innerHTML = `
+            <input type="checkbox" value="${val}" checked class="chk-${filterKey}">
+            <span>${text}</span>
+        `;
+        optionsContainer.appendChild(label);
+    });
+
+    actualizarTextoTrigger(container, filterKey);
+}
+
+function actualizarTextoTrigger(container, filterKey) {
+    const checkboxes = container.querySelectorAll('.multiselect-options input[type="checkbox"]');
+    const total = checkboxes.length;
+    const marcados = filtroSelecciones[filterKey].length;
+    const triggerText = container.querySelector('.selected-text');
+
+    if (!triggerText) return;
+
+    if (marcados === total || marcados === 0) {
+        triggerText.textContent = filterKey === 'mes' ? "Todos los meses" : (filterKey === 'ciudad' || filterKey === 'zona' ? "Todas" : "Todos");
+    } else if (marcados === 1) {
+        const checkedInput = container.querySelector('.multiselect-options input[type="checkbox"]:checked');
+        triggerText.textContent = checkedInput ? checkedInput.nextElementSibling.textContent : filtroSelecciones[filterKey][0];
+    } else {
+        triggerText.textContent = `${marcados} seleccionados`;
+    }
+}
 
 // ==========================================
 // PARSER Y UTILIDADES DE FECHA Y HORA
@@ -47,7 +162,6 @@ function obtenerFechaObjeto(item) {
 
     if (rawFecha instanceof Date) return rawFecha;
 
-    // Detectar números seriales de Excel (ej. 46024)
     const num = Number(rawFecha);
     if (!isNaN(num) && num > 30000 && num < 70000) {
         const dateUTC = new Date(Math.round((num - 25569) * 86400 * 1000));
@@ -168,10 +282,9 @@ function mostrarSecciones() {
 
 function poblarFiltros(data) {
     const anos = new Set();
-    const estados = new Set();
-    const actividades = new Set();
     const ciudades = new Set();
     const zonas = new Set();
+    const actividades = new Set();
 
     data.forEach(item => {
         const fechaObj = obtenerFechaObjeto(item);
@@ -180,111 +293,71 @@ function poblarFiltros(data) {
             if (!isNaN(ano)) anos.add(ano);
         }
 
-        if (item.Estado) estados.add(item.Estado);
-        if (item.Tipo_de_Activi || item.Tipo_de_Actividad) actividades.add(item.Tipo_de_Activi || item.Tipo_de_Actividad);
+        const act = item.Tipo_de_Activi || item.Tipo_de_Actividad;
+        if (act) actividades.add(act);
+
         if (item.Ciudad) ciudades.add(item.Ciudad);
+
         const zonaVal = item.Zona_de_traba || item.Zona;
         if (zonaVal) zonas.add(zonaVal);
     });
 
     const anosOrdenados = Array.from(anos).sort((a, b) => b - a);
+    const ciudadesOrdenadas = Array.from(ciudades).sort();
+    const zonasOrdenadas = Array.from(zonas).sort();
+    const actividadesOrdenadas = Array.from(actividades).sort();
 
-    llenarSelect("filterAno", anosOrdenados);
-    llenarSelect("filterEstado", estados);
-    llenarSelect("filterActividad", actividades);
-    llenarSelect("filterCiudad", ciudades);
-    llenarSelect("filterZona", zonas);
+    poblarMultiselect("multiselectAno", "ano", anosOrdenados);
+    poblarMultiselect("multiselectActividad", "actividad", actividadesOrdenadas);
+    poblarMultiselect("multiselectZona", "zona", zonasOrdenadas);
+    poblarMultiselect("multiselectCiudad", "ciudad", ciudadesOrdenadas);
 
-    llenarSelectMes();
-
-    const selectAno = document.getElementById("filterAno");
-    if (selectAno && selectAno.options.length > 0) {
-        if (selectAno.options[0].text.toLowerCase().includes("todos") || selectAno.options[0].value === "") {
-            selectAno.remove(0);
-        }
-
-        if (anosOrdenados.length > 0) {
-            selectAno.value = anosOrdenados[0];
-        }
-    }
-}
-
-function llenarSelect(id, setValores) {
-    const select = document.getElementById(id);
-    if (!select) return;
-
-    const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
-
-    select.innerHTML = "";
-    select.appendChild(optionDefault);
-
-    Array.from(setValores).forEach(val => {
-        const opt = document.createElement("option");
-        opt.value = val;
-        opt.textContent = val;
-        select.appendChild(opt);
-    });
-}
-
-function llenarSelectMes() {
-    const select = document.getElementById("filterMes");
-    if (!select) return;
-
-    const optionDefault = select.options[0] ? select.options[0].cloneNode(true) : document.createElement("option");
-
-    select.innerHTML = "";
-    select.appendChild(optionDefault);
-
-    ordenMeses.forEach((mesCorto, index) => {
-        const opt = document.createElement("option");
-        opt.value = mesCorto;
-        opt.textContent = ordenMesesCompletos[index];
-        select.appendChild(opt);
-    });
+    const itemsMeses = ordenMeses.map((mesCorto, idx) => ({
+        value: mesCorto,
+        text: ordenMesesCompletos[idx]
+    }));
+    poblarMultiselect("multiselectMes", "mes", itemsMeses);
 }
 
 function aplicarFiltros() {
-    const anoSel = document.getElementById("filterAno")?.value || "";
-    const mesSel = document.getElementById("filterMes")?.value || "";
-    const estadoSel = document.getElementById("filterEstado")?.value || "";
-    const actividadSel = document.getElementById("filterActividad")?.value || "";
-    const ciudadSel = document.getElementById("filterCiudad")?.value || "";
-    const zonaSel = document.getElementById("filterZona")?.value || "";
-
     filteredData = rawExcelData.filter(item => {
         const fechaObj = obtenerFechaObjeto(item);
         const itemAno = fechaObj ? fechaObj.getFullYear().toString() : "";
         const itemMes = fechaObj ? ordenMeses[fechaObj.getMonth()] : "";
 
-        const cumpleAno = anoSel === "" || itemAno === anoSel;
-        const cumpleMes = mesSel === "" || itemMes === mesSel;
-        const cumpleEstado = estadoSel === "" || item.Estado === estadoSel;
-
-        const act = item.Tipo_de_Activi || item.Tipo_de_Actividad;
-        const cumpleActividad = actividadSel === "" || act === actividadSel;
-
-        const cumpleCiudad = ciudadSel === "" || item.Ciudad === ciudadSel;
-
+        const itemAct = item.Tipo_de_Activi || item.Tipo_de_Actividad || "";
+        const itemCiudad = item.Ciudad || "";
         const itemZona = item.Zona_de_traba || item.Zona || "";
-        const cumpleZona = zonaSel === "" || itemZona === zonaSel;
 
-        return cumpleAno && cumpleMes && cumpleEstado && cumpleActividad && cumpleCiudad && cumpleZona;
+        const totalAno = document.querySelectorAll("#multiselectAno .chk-ano").length;
+        const cumpleAno = totalAno === 0 || filtroSelecciones.ano.length === 0 || filtroSelecciones.ano.includes(itemAno);
+
+        const totalMes = document.querySelectorAll("#multiselectMes .chk-mes").length;
+        const cumpleMes = totalMes === 0 || filtroSelecciones.mes.length === 0 || filtroSelecciones.mes.includes(itemMes);
+
+        const totalAct = document.querySelectorAll("#multiselectActividad .chk-actividad").length;
+        const cumpleActividad = totalAct === 0 || filtroSelecciones.actividad.length === 0 || filtroSelecciones.actividad.includes(itemAct);
+
+        const totalCiudad = document.querySelectorAll("#multiselectCiudad .chk-ciudad").length;
+        const cumpleCiudad = totalCiudad === 0 || filtroSelecciones.ciudad.length === 0 || filtroSelecciones.ciudad.includes(itemCiudad);
+
+        const totalZona = document.querySelectorAll("#multiselectZona .chk-zona").length;
+        const cumpleZona = totalZona === 0 || filtroSelecciones.zona.length === 0 || filtroSelecciones.zona.includes(itemZona);
+
+        return cumpleAno && cumpleMes && cumpleActividad && cumpleCiudad && cumpleZona;
     });
 
     actualizarDashboard();
 }
 
 function limpiarFiltros() {
-    const selectAno = document.getElementById("filterAno");
-    if (selectAno && selectAno.options.length > 0) {
-        selectAno.selectedIndex = 0;
-    }
-
-    if (document.getElementById("filterEstado")) document.getElementById("filterEstado").value = "";
-    if (document.getElementById("filterActividad")) document.getElementById("filterActividad").value = "";
-    if (document.getElementById("filterCiudad")) document.getElementById("filterCiudad").value = "";
-    if (document.getElementById("filterMes")) document.getElementById("filterMes").value = "";
-    if (document.getElementById("filterZona")) document.getElementById("filterZona").value = "";
+    document.querySelectorAll('.custom-multiselect').forEach(container => {
+        const filterKey = container.dataset.filterKey;
+        const checkboxes = container.querySelectorAll('.multiselect-options input[type="checkbox"]');
+        checkboxes.forEach(chk => chk.checked = true);
+        filtroSelecciones[filterKey] = Array.from(checkboxes).map(chk => chk.value);
+        actualizarTextoTrigger(container, filterKey);
+    });
 
     aplicarFiltros();
 }
@@ -870,14 +943,19 @@ async function descargarDashboard() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const toggleBtn = document.getElementById('toggleFiltersBtn');
-    const filtersSection = document.getElementById('filters');
+function aplicarTodosLosFiltros() {
+    // 1. Recorrer cada desplegable y sincronizar las casillas marcadas con el estado global
+    document.querySelectorAll('.custom-multiselect').forEach(container => {
+        const filterKey = container.dataset.filterKey;
+        const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input[type="checkbox"]:checked'));
+        
+        filtroSelecciones[filterKey] = checkedInputs.map(chk => chk.value);
+        actualizarTextoTrigger(container, filterKey);
+    });
 
-    if (toggleBtn && filtersSection) {
-        toggleBtn.addEventListener('click', () => {
-            filtersSection.classList.toggle('is-open');
-            toggleBtn.classList.toggle('active');
-        });
-    }
-});
+    // 2. Cerrar cualquier menú flotante abierto
+    document.querySelectorAll('.multiselect-menu').forEach(m => m.classList.add('hidden'));
+
+    // 3. Ejecutar el filtrado global de datos y actualizar KPIs/Gráficos
+    aplicarFiltros();
+}

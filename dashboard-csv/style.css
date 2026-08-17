@@ -49,7 +49,7 @@ main {
 
 .upload-button {
     display: inline-block;
-    background: #2563eb;
+    background: #232856;
     color: white;
     padding: 12px 20px;
     border-radius: 8px;
@@ -58,7 +58,7 @@ main {
 }
 
 .upload-button:hover {
-    background: #1d4ed8;
+    background: #232856;
 }
 
 #fileName {
@@ -105,13 +105,13 @@ button {
     border: none;
     padding: 10px 16px;
     border-radius: 7px;
-    background: #64748b;
+    background: #232856;
     color: white;
     cursor: pointer;
 }
 
 button:hover {
-    background: #475569;
+    border-color: 3f67be;
 }
 
 
@@ -323,9 +323,9 @@ tr:hover {
 }
 
 .filter-toggle-btn:hover {
-  background-color: #ffffff; /* Fondo azul */
-  color: #1d4ed8;           /* Texto e íconos blancos */
-  border: 2px solid #1d4ed8;
+  background-color: #ffffff;
+  color: #1d4ed8;
+  border: 2px solid #232856;
 }
 
 .chevron-icon {
@@ -337,20 +337,20 @@ tr:hover {
   transform: rotate(180deg);
 }
 
-/* Oculto por defecto con transición */
+/* Estado colapsado por defecto */
 .filters {
   background: #ffffff;
-  border-radius: var(--radius-lg);
+  border-radius: 14px;
   display: flex;
   align-items: flex-end;
   gap: 16px;
   flex-wrap: wrap;
+  position: relative;
   
-  
-  /* Estado colapsado */
+  /* Animación de apertura */
   max-height: 0;
   opacity: 0;
-  overflow: hidden;
+  overflow: hidden; /* Mantiene oculto durante el colapso */
   padding: 0 24px;
   margin-bottom: 0;
   border: 1px solid transparent;
@@ -363,14 +363,224 @@ tr:hover {
 
 /* Estado desplegado al presionar el botón */
 .filters.is-open {
-  max-height: 380px;
+  max-height: 1000px;
   opacity: 1;
   padding: 20px 24px;
   margin-bottom: 24px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
   
-  background-color: #ffffff;
-  border-radius: 14px;
-  border: 1px solid transparent;
+  /* CAMBIO CLAVE: Permite que los menús flotantes salgan del contenedor */
+  overflow: visible !important; 
 }
 
+/* ESTILOS GENERALES Y UTILIDADES */
+.hidden {
+    display: none !important;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+}
+
+.filter-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #694760;
+}
+
+/* COMPONENTE MULTISELECT PERSONALIZADO */
+.custom-multiselect {
+    position: relative;
+    width: 190px;
+    font-family: inherit;
+    z-index: 1;
+}
+
+/* Eleva el grupo activo por encima de sus vecinos adyacentes */
+.custom-multiselect:focus-within,
+.custom-multiselect:hover {
+    z-index: 100;
+}
+
+/* CORRECCIÓN DEL MENÚ DESPLEGABLE */
+.multiselect-menu {
+  position: absolute;         /* Flota sobre los demás elementos */
+  top: calc(100% + 4px);      /* Se ubica justo debajo del botón desplegable */
+  left: 0;
+  z-index: 1000;              /* Se superpone a cualquier otro elemento */
+  background: #ffffff;        /* Fondo sólido blanco */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  width: 220px;
+}
+
+/* CORRECCIÓN DEL ENCABEZADO (Todos | Limpiar) */
+.multiselect-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* ANULACIÓN DE LA REGLA GLOBAL DE BOTONES EN EL ENCABEZADO */
+.multiselect-header .btn-action {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.multiselect-header .btn-todos {
+  color: #2563eb;
+}
+
+.multiselect-header .btn-limpiar {
+  color: #ef4444;
+}
+
+.multiselect-trigger {
+    width: 100%;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: #334155;
+    box-sizing: border-box;
+}
+
+.multiselect-trigger:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.multiselect-menu.hidden {
+    display: none !important;
+}
+
+
+.btn-action {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14px;
+  color: #232856; /* Cambia al color de tu preferencia */
+}
+
+.divider {
+  color: #999;
+}
+
+.btn-todos {
+    color: #2563eb;
+}
+
+.btn-limpiar {
+    color: #ef4444;
+}
+
+.divider {
+    color: #cbd5e1;
+}
+
+.multiselect-options {
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.multiselect-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    font-size: 13px;
+    color: #33553f;
+    cursor: pointer;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.multiselect-options label:hover {
+    background-color: #f8fafc;
+}
+
+.multiselect-footer {
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.btn-apply {
+    width: 100%;
+    padding: 6px 12px;
+    background-color: #1d2a57;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-apply:hover {
+    background-color: #2a3d7c;
+}
+
+#clearFilters {
+    padding: 8px 16px;
+    background-color: #232856;
+    color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+    height: 38px;
+}
+
+#clearFilters:hover {
+    background-color: #3e9cf9;
+}
+
+.btn-apply-all {
+    padding: 8px 18px;
+    background-color: #232856;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+    height: 38px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-apply-all:hover {
+    background-color: #232856;
+}
+
+.btn-apply-all:active {
+    transform: scale(0.98);
+}
