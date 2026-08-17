@@ -42,13 +42,16 @@ document.addEventListener("DOMContentLoaded", () => {
 function obtenerFechaObjeto(item) {
     if (!item) return null;
 
-    let rawFecha = item.Origen || item.Fecha || item.FIN || item.Fin || item.Inicio;
+    let rawFecha = item.Fecha || item.FECHA || item.Fecha_Inicio || item.Origen || item.FIN || item.Fin || item.Inicio;
     if (!rawFecha) return null;
 
     if (rawFecha instanceof Date) return rawFecha;
 
-    if (typeof rawFecha === 'number') {
-        return new Date(Math.round((rawFecha - 25569) * 86400 * 1000));
+    // Detectar números seriales de Excel (ej. 46024)
+    const num = Number(rawFecha);
+    if (!isNaN(num) && num > 30000 && num < 70000) {
+        const dateUTC = new Date(Math.round((num - 25569) * 86400 * 1000));
+        return new Date(dateUTC.getUTCFullYear(), dateUTC.getUTCMonth(), dateUTC.getUTCDate());
     }
 
     if (typeof rawFecha === 'string') {
@@ -68,6 +71,17 @@ function obtenerFechaObjeto(item) {
 
     const d = new Date(rawFecha);
     return isNaN(d.getTime()) ? null : d;
+}
+
+function formatearFecha(item) {
+    const f = obtenerFechaObjeto(item);
+    if (!f || isNaN(f.getTime())) return '-';
+
+    const dia = String(f.getDate()).padStart(2, '0');
+    const mes = String(f.getMonth() + 1).padStart(2, '0');
+    const anio = f.getFullYear();
+
+    return `${dia}/${mes}/${anio}`;
 }
 
 function convertirAHoraMinutos(valor) {
@@ -141,7 +155,6 @@ function mostrarSecciones() {
     document.getElementById("charts")?.classList.remove("hidden");
     document.getElementById("tableSection")?.classList.remove("hidden");
 
-    // MOSTRAR EL BOTÓN DE DESCARGA SOLO CUANDO SE CARGA EL ARCHIVO:
     const btnDescargar = document.getElementById("btnDescargar");
     if (btnDescargar) {
         btnDescargar.classList.remove("hidden");
@@ -385,6 +398,39 @@ function actualizarKPIs() {
 // RENDERIZADO DE TABLA DE DETALLE
 // ==========================================
 
+function formatearHoraRedondeada(valor) {
+    if (valor === null || valor === undefined || valor === "") return '-';
+
+    if (typeof valor === 'number') {
+        const totalMinutos = Math.round(valor * 24 * 60);
+        const hrs = String(Math.floor(totalMinutos / 60) % 24).padStart(2, '0');
+        const mins = String(totalMinutos % 60).padStart(2, '0');
+        return `${hrs}:${mins}`;
+    }
+
+    if (typeof valor === 'string') {
+        const str = valor.trim();
+        const partes = str.split(':');
+        if (partes.length >= 2) {
+            let h = parseInt(partes[0].slice(-2), 10);
+            let m = parseInt(partes[1], 10);
+            let s = partes[2] ? parseInt(partes[2], 10) : 0;
+
+            if (s >= 30) m++;
+            if (m >= 60) {
+                m = 0;
+                h = (h + 1) % 24;
+            }
+
+            if (!isNaN(h) && !isNaN(m)) {
+                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            }
+        }
+    }
+
+    return valor;
+}
+
 function renderizarTabla() {
     const tbody = document.getElementById("dataTable");
     if (!tbody) return;
@@ -393,17 +439,27 @@ function renderizarTabla() {
     const limiteData = filteredData.slice(0, 100);
 
     limiteData.forEach(item => {
+        let tecnico = (item.Tecnico || '-').toString().trim();
+
+        const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
+        const finRaw = item.Fin || item.FIN || item.Hora_Fin;
+
+        const inicioFormateado = formatearHoraRedondeada(inicioRaw);
+        const finFormateado = formatearHoraRedondeada(finRaw);
+        const fechaFormateada = formatearFecha(item);
+
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td>${item.Orden_de_Tra || item.Nro_Orden || '-'}</td>
-            <td>${item.Tecnico || '-'}</td>
+            <td>${tecnico}</td>
+            <td>${item.rut || item.Rut_o_Bucket || '-'}</td>
             <td>${item.Tipo_de_Activi || item.Tipo_de_Actividad || '-'}</td>
+            <td>${item.orden || item.Orden_de_Trabajo || '-'}</td>
             <td>${item.Ciudad || '-'}</td>
-            <td>${item.Zona_de_traba || item.Zona || '-'}</td>
-            <td>${item.Inicio || '-'}</td>
-            <td>${item.Fin || item.FIN || '-'}</td>
+            <td>${item.Zona_de_traba || item.Zona_de_trabajo || '-'}</td>
+            <td>${inicioFormateado}</td>
+            <td>${finFormateado}</td>
             <td>${item.Estado || '-'}</td>
-            <td>${item.Tipo_Red || '-'}</td>
+            <td>${fechaFormateada}</td>
             <td>${item.RGU || '0'}</td>
         `;
         tbody.appendChild(tr);
@@ -789,8 +845,6 @@ function renderizarMiniGraficoDuracion() {
     });
 }
 
-// Exportar imagen del Dashboard en general
-
 async function descargarDashboard() {
     const contenedor = document.getElementById("dashboardCapture");
 
@@ -817,17 +871,13 @@ async function descargarDashboard() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const toggleBtn = document.getElementById('toggleFiltersBtn');
-  const filtersSection = document.getElementById('filters');
+    const toggleBtn = document.getElementById('toggleFiltersBtn');
+    const filtersSection = document.getElementById('filters');
 
-  if (toggleBtn && filtersSection) {
-    toggleBtn.addEventListener('click', () => {
-      // Alterna la clase de despliegue en la sección de filtros
-      filtersSection.classList.toggle('is-open');
-      
-      // Alterna la animación de la flecha en el botón
-      toggleBtn.classList.toggle('active');
-    });
-  }
+    if (toggleBtn && filtersSection) {
+        toggleBtn.addEventListener('click', () => {
+            filtersSection.classList.toggle('is-open');
+            toggleBtn.classList.toggle('active');
+        });
+    }
 });
-
