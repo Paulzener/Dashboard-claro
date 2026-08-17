@@ -106,7 +106,7 @@ function inicializarMultiselects() {
     });
 }
 
-function poblarMultiselect(idContainer, filterKey, items) {
+function poblarMultiselect(idContainer, filterKey, items, esUnico = false) {
     const container = document.getElementById(idContainer);
     if (!container) return;
     const optionsContainer = container.querySelector('.multiselect-options');
@@ -115,17 +115,35 @@ function poblarMultiselect(idContainer, filterKey, items) {
     optionsContainer.innerHTML = '';
     filtroSelecciones[filterKey] = [];
 
-    items.forEach(item => {
+    // Ocultar la cabecera "Todos | Limpiar" si es de selección única
+    const header = container.querySelector('.multiselect-header');
+    if (header) {
+        header.style.display = esUnico ? 'none' : 'flex';
+    }
+
+    items.forEach((item, index) => {
         const val = typeof item === 'object' ? item.value : item;
         const text = typeof item === 'object' ? item.text : item;
 
-        filtroSelecciones[filterKey].push(String(val));
-
         const label = document.createElement('label');
-        label.innerHTML = `
-            <input type="checkbox" value="${val}" checked class="chk-${filterKey}">
-            <span>${text}</span>
-        `;
+
+        if (esUnico) {
+            // Selecciona el primer año (el más reciente) por defecto
+            const isChecked = index === 0;
+            if (isChecked) filtroSelecciones[filterKey] = [String(val)];
+
+            label.innerHTML = `
+                <input type="radio" name="radio-${filterKey}" value="${val}" ${isChecked ? 'checked' : ''} class="chk-${filterKey}">
+                <span>${text}</span>
+            `;
+        } else {
+            filtroSelecciones[filterKey].push(String(val));
+            label.innerHTML = `
+                <input type="checkbox" value="${val}" checked class="chk-${filterKey}">
+                <span>${text}</span>
+            `;
+        }
+
         optionsContainer.appendChild(label);
     });
 
@@ -133,17 +151,23 @@ function poblarMultiselect(idContainer, filterKey, items) {
 }
 
 function actualizarTextoTrigger(container, filterKey) {
-    const checkboxes = container.querySelectorAll('.multiselect-options input[type="checkbox"]');
-    const total = checkboxes.length;
+    const checkedInput = container.querySelector('.multiselect-options input:checked');
+    const total = container.querySelectorAll('.multiselect-options input').length;
     const marcados = filtroSelecciones[filterKey].length;
     const triggerText = container.querySelector('.selected-text');
 
     if (!triggerText) return;
 
+    // Si es un filtro de selección única (Radio Button)
+    if (container.querySelector('input[type="radio"]')) {
+        triggerText.textContent = checkedInput ? checkedInput.nextElementSibling.textContent : "Seleccionar";
+        return;
+    }
+
+    // Para filtros multiselect normales (Checkboxes)
     if (marcados === total || marcados === 0) {
         triggerText.textContent = filterKey === 'mes' ? "Todos los meses" : (filterKey === 'ciudad' || filterKey === 'zona' ? "Todas" : "Todos");
     } else if (marcados === 1) {
-        const checkedInput = container.querySelector('.multiselect-options input[type="checkbox"]:checked');
         triggerText.textContent = checkedInput ? checkedInput.nextElementSibling.textContent : filtroSelecciones[filterKey][0];
     } else {
         triggerText.textContent = `${marcados} seleccionados`;
@@ -307,7 +331,7 @@ function poblarFiltros(data) {
     const zonasOrdenadas = Array.from(zonas).sort();
     const actividadesOrdenadas = Array.from(actividades).sort();
 
-    poblarMultiselect("multiselectAno", "ano", anosOrdenados);
+    poblarMultiselect("multiselectAno", "ano", anosOrdenados, true);// <--- Se agrega el parámetro 'true'
     poblarMultiselect("multiselectActividad", "actividad", actividadesOrdenadas);
     poblarMultiselect("multiselectZona", "zona", zonasOrdenadas);
     poblarMultiselect("multiselectCiudad", "ciudad", ciudadesOrdenadas);
@@ -353,9 +377,20 @@ function aplicarFiltros() {
 function limpiarFiltros() {
     document.querySelectorAll('.custom-multiselect').forEach(container => {
         const filterKey = container.dataset.filterKey;
-        const checkboxes = container.querySelectorAll('.multiselect-options input[type="checkbox"]');
-        checkboxes.forEach(chk => chk.checked = true);
-        filtroSelecciones[filterKey] = Array.from(checkboxes).map(chk => chk.value);
+        const isRadio = container.querySelector('input[type="radio"]');
+
+        if (isRadio) {
+            const firstRadio = container.querySelector('input[type="radio"]');
+            if (firstRadio) {
+                firstRadio.checked = true;
+                filtroSelecciones[filterKey] = [firstRadio.value];
+            }
+        } else {
+            const checkboxes = container.querySelectorAll('.multiselect-options input[type="checkbox"]');
+            checkboxes.forEach(chk => chk.checked = true);
+            filtroSelecciones[filterKey] = Array.from(checkboxes).map(chk => chk.value);
+        }
+
         actualizarTextoTrigger(container, filterKey);
     });
 
@@ -953,9 +988,16 @@ function aplicarTodosLosFiltros() {
         actualizarTextoTrigger(container, filterKey);
     });
 
-    // 2. Cerrar cualquier menú flotante abierto
+    // 2. Cerrar cualquier menú flotante individual que haya quedado abierto
     document.querySelectorAll('.multiselect-menu').forEach(m => m.classList.add('hidden'));
 
-    // 3. Ejecutar el filtrado global de datos y actualizar KPIs/Gráficos
+    // 3. Colapsar la sección principal de filtros y restablecer el botón
+    const filtersSection = document.getElementById('filters');
+    const toggleBtn = document.getElementById('toggleFiltersBtn');
+
+    if (filtersSection) filtersSection.classList.remove('is-open');
+    if (toggleBtn) toggleBtn.classList.remove('active');
+
+    // 4. Ejecutar el filtrado global de datos y actualizar KPIs/Gráficos
     aplicarFiltros();
 }
