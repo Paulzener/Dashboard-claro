@@ -1,7 +1,7 @@
 // ==========================================
 // VARIABLES GLOBALES Y CONFIGURACIÓN INICIAL
 // ==========================================
-let rawExcelData = [];
+let rawData = [];
 let filteredData = [];
 
 // Estado global de selecciones para todos los multiselects
@@ -17,8 +17,6 @@ let filtroSelecciones = {
 let estadoChartInstance = null;
 let actividadChartInstance = null;
 let duracionChartInstance = null;
-let miniEfectividadChartInstance = null;
-let miniDuracionChartInstance = null;
 
 const ordenMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const ordenMesesCompletos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -29,29 +27,33 @@ if (typeof ChartDataLabels !== 'undefined') {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    const excelInput = document.getElementById("excelFile");
-    if (excelInput) {
-        excelInput.addEventListener("change", cargarArchivoExcel);
-    }
+    // Cargar datos automáticamente desde la base de datos (Node.js API)
+    cargarDatosDesdeAPI();
 
-    // Inicializar interacción de todos los multiselects
     inicializarMultiselects();
-
-    // Botón general "Limpiar filtros"
     document.getElementById("clearFilters")?.addEventListener("click", limpiarFiltros);
-    // Dentro de document.addEventListener("DOMContentLoaded", () => { ... })
     document.getElementById("applyAllFilters")?.addEventListener("click", aplicarTodosLosFiltros);
-    // Desplegable de la sección de filtros
-    const toggleBtn = document.getElementById('toggleFiltersBtn');
-    const filtersSection = document.getElementById('filters');
-
-    if (toggleBtn && filtersSection) {
-        toggleBtn.addEventListener('click', () => {
-            filtersSection.classList.toggle('is-open');
-            toggleBtn.classList.toggle('active');
-        });
-    }
 });
+
+// Función para obtener los datos desde SQL Server vía API Express
+function cargarDatosDesdeAPI() {
+    fetch('/api/actividades')
+        .then(response => {
+            if (!response.ok) throw new Error('Error en la solicitud a la API');
+            return response.json();
+        })
+        .then(data => {
+            rawData = data;
+            filteredData = [...rawData];
+
+            poblarFiltros(rawData);
+            mostrarSecciones();
+            aplicarFiltros();
+        })
+        .catch(error => {
+            console.error('Error al cargar datos desde la base de datos:', error);
+        });
+}
 
 // ==========================================
 // LÓGICA DE COMPONENTES MULTISELECT
@@ -66,7 +68,6 @@ function inicializarMultiselects() {
         const btnApply = container.querySelector('.btn-apply');
         const filterKey = container.dataset.filterKey;
 
-        // Abrir/cerrar menú
         trigger?.addEventListener('click', (e) => {
             e.stopPropagation();
             document.querySelectorAll('.multiselect-menu').forEach(m => {
@@ -75,28 +76,23 @@ function inicializarMultiselects() {
             menu?.classList.toggle('hidden');
         });
 
-        // Marcar todos
         btnTodos?.addEventListener('click', (e) => {
             e.stopPropagation();
             container.querySelectorAll('.multiselect-options input[type="checkbox"]').forEach(chk => chk.checked = true);
         });
 
-        // Limpiar selección actual en menú
         btnLimpiar?.addEventListener('click', (e) => {
             e.stopPropagation();
             container.querySelectorAll('.multiselect-options input[type="checkbox"]').forEach(chk => chk.checked = false);
         });
 
-        // Aplicar selección desde un desplegable individual
         btnApply?.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Cambiado a input:checked para soportar radio buttons y checkboxes
             const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input:checked'));
             filtroSelecciones[filterKey] = checkedInputs.map(chk => chk.value);
             actualizarTextoTrigger(container, filterKey);
             menu?.classList.add('hidden');
 
-            // Ocultar sección de filtros
             document.getElementById('filters')?.classList.remove('is-open');
             document.getElementById('toggleFiltersBtn')?.classList.remove('active');
 
@@ -104,7 +100,6 @@ function inicializarMultiselects() {
         });
     });
 
-    // Cerrar al hacer clic fuera
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.custom-multiselect')) {
             document.querySelectorAll('.multiselect-menu').forEach(m => m.classList.add('hidden'));
@@ -121,7 +116,6 @@ function poblarMultiselect(idContainer, filterKey, items, esUnico = false) {
     optionsContainer.innerHTML = '';
     filtroSelecciones[filterKey] = [];
 
-    // Ocultar la cabecera "Todos | Limpiar" si es de selección única
     const header = container.querySelector('.multiselect-header');
     if (header) {
         header.style.display = esUnico ? 'none' : 'flex';
@@ -134,7 +128,6 @@ function poblarMultiselect(idContainer, filterKey, items, esUnico = false) {
         const label = document.createElement('label');
 
         if (esUnico) {
-            // Selecciona el primer año (el más reciente) por defecto
             const isChecked = index === 0;
             if (isChecked) filtroSelecciones[filterKey] = [String(val)];
 
@@ -164,13 +157,11 @@ function actualizarTextoTrigger(container, filterKey) {
 
     if (!triggerText) return;
 
-    // Si es un filtro de selección única (Radio Button)
     if (container.querySelector('input[type="radio"]')) {
         triggerText.textContent = checkedInput ? checkedInput.nextElementSibling.textContent : "Seleccionar";
         return;
     }
 
-    // Para filtros multiselect normales (Checkboxes)
     if (marcados === total || marcados === 0) {
         triggerText.textContent = filterKey === 'mes' ? "Todos los meses" : (filterKey === 'ciudad' || filterKey === 'zona' ? "Todas" : "Todos");
     } else if (marcados === 1) {
@@ -181,7 +172,7 @@ function actualizarTextoTrigger(container, filterKey) {
 }
 
 // ==========================================
-// PARSER Y UTILIDADES DE FECHA Y HORA
+// PARSER DE FECHA Y HORA (SQL SERVER)
 // ==========================================
 
 function obtenerFechaObjeto(item) {
@@ -192,23 +183,28 @@ function obtenerFechaObjeto(item) {
 
     if (rawFecha instanceof Date) return rawFecha;
 
-    const num = Number(rawFecha);
-    if (!isNaN(num) && num > 30000 && num < 70000) {
-        const dateUTC = new Date(Math.round((num - 25569) * 86400 * 1000));
-        return new Date(dateUTC.getUTCFullYear(), dateUTC.getUTCMonth(), dateUTC.getUTCDate());
-    }
-
     if (typeof rawFecha === 'string') {
         let str = rawFecha.trim();
+
+        // Parseo de fechas ISO provenientes de SQL Server (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss)
+        if (str.includes('-') && str.length >= 10 && str.indexOf('-') === 4) {
+            const partesIso = str.split('T')[0].split('-');
+            const a = parseInt(partesIso[0], 10);
+            const m = parseInt(partesIso[1], 10) - 1;
+            const d = parseInt(partesIso[2], 10);
+            if (!isNaN(a) && !isNaN(m) && !isNaN(d)) return new Date(a, m, d);
+        }
+
+        // Formatos tradicionales DD/MM/YYYY o YYYY/MM/DD
         const partes = str.split(/[\/\-\s]/);
         if (partes.length >= 3) {
-            const dia = parseInt(partes[0], 10);
-            const mes = parseInt(partes[1], 10) - 1;
-            const anio = parseInt(partes[2], 10);
+            const p0 = parseInt(partes[0], 10);
+            const p1 = parseInt(partes[1], 10) - 1;
+            const p2 = parseInt(partes[2], 10);
 
-            if (!isNaN(dia) && !isNaN(mes) && !isNaN(anio)) {
-                if (partes[2].length === 4) return new Date(anio, mes, dia);
-                if (partes[0].length === 4) return new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
+            if (!isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
+                if (partes[2].length === 4) return new Date(p2, p1, p0);
+                if (partes[0].length === 4) return new Date(p0, p1, p2);
             }
         }
     }
@@ -230,13 +226,6 @@ function formatearFecha(item) {
 
 function convertirAHoraMinutos(valor) {
     if (valor === null || valor === undefined || valor === "") return null;
-
-    if (typeof valor === 'number') {
-        const totalSegundos = Math.round(valor * 86400);
-        const horas = Math.floor(totalSegundos / 3600);
-        const minutos = Math.floor((totalSegundos % 3600) / 60);
-        return horas * 60 + minutos;
-    }
 
     if (typeof valor === 'string' || valor instanceof String) {
         const str = valor.toString().trim();
@@ -265,45 +254,11 @@ function calcularDiferenciaMinutos(horaInicioRaw, horaFinRaw) {
     return diferencia;
 }
 
-// ==========================================
-// CARGA Y PROCESAMIENTO DE EXCEL
-// ==========================================
-
-function cargarArchivoExcel(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    document.getElementById("fileName").innerText = file.name;
-
-    const reader = new FileReader();
-    reader.onload = function (evt) {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheet];
-
-        rawExcelData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-        filteredData = [...rawExcelData];
-
-        poblarFiltros(rawExcelData);
-        mostrarSecciones();
-        aplicarFiltros();
-    };
-
-    reader.readAsArrayBuffer(file);
-}
-
 function mostrarSecciones() {
     document.getElementById("filters")?.classList.remove("hidden");
     document.getElementById("kpis")?.classList.remove("hidden");
     document.getElementById("charts")?.classList.remove("hidden");
     document.getElementById("tableSection")?.classList.remove("hidden");
-
-    const btnDescargar = document.getElementById("btnDescargar");
-    if (btnDescargar) {
-        btnDescargar.classList.remove("hidden");
-        btnDescargar.style.display = "inline-block";
-    }
 }
 
 // ==========================================
@@ -323,12 +278,13 @@ function poblarFiltros(data) {
             if (!isNaN(ano)) anos.add(ano);
         }
 
-        const act = item.Tipo_de_Activi || item.Tipo_de_Actividad;
+        const act = (item.Tipo_de_Actividad || "").toString().trim();
         if (act) actividades.add(act);
 
-        if (item.Ciudad) ciudades.add(item.Ciudad);
+        const ciudad = (item.Ciudad || "").toString().trim();
+        if (ciudad) ciudades.add(ciudad);
 
-        const zonaVal = item.Zona_de_traba || item.Zona;
+        const zonaVal = (item.Zona_de_trabajo || "").toString().trim();
         if (zonaVal) zonas.add(zonaVal);
     });
 
@@ -337,7 +293,7 @@ function poblarFiltros(data) {
     const zonasOrdenadas = Array.from(zonas).sort();
     const actividadesOrdenadas = Array.from(actividades).sort();
 
-    poblarMultiselect("multiselectAno", "ano", anosOrdenados, true);// <--- Se agrega el parámetro 'true'
+    poblarMultiselect("multiselectAno", "ano", anosOrdenados, true);
     poblarMultiselect("multiselectActividad", "actividad", actividadesOrdenadas);
     poblarMultiselect("multiselectZona", "zona", zonasOrdenadas);
     poblarMultiselect("multiselectCiudad", "ciudad", ciudadesOrdenadas);
@@ -350,34 +306,48 @@ function poblarFiltros(data) {
 }
 
 function aplicarFiltros() {
-    filteredData = rawExcelData.filter(item => {
+    filteredData = rawData.filter(item => {
         const fechaObj = obtenerFechaObjeto(item);
         const itemAno = fechaObj ? fechaObj.getFullYear().toString() : "";
         const itemMes = fechaObj ? ordenMeses[fechaObj.getMonth()] : "";
 
-        const itemAct = item.Tipo_de_Activi || item.Tipo_de_Actividad || "";
-        const itemCiudad = item.Ciudad || "";
-        const itemZona = item.Zona_de_traba || item.Zona || "";
+        const itemAct = (item.Tipo_de_Actividad || "").toString().trim();
+        const itemCiudad = (item.Ciudad || "").toString().trim();
+        const itemZona = (item.Zona_de_trabajo || "").toString().trim();
 
-        const totalAno = document.querySelectorAll("#multiselectAno .chk-ano").length;
+        const totalAno = document.querySelectorAll("#multiselectAno input").length;
         const cumpleAno = totalAno === 0 || filtroSelecciones.ano.length === 0 || filtroSelecciones.ano.includes(itemAno);
 
-        const totalMes = document.querySelectorAll("#multiselectMes .chk-mes").length;
+        const totalMes = document.querySelectorAll("#multiselectMes input").length;
         const cumpleMes = totalMes === 0 || filtroSelecciones.mes.length === 0 || filtroSelecciones.mes.includes(itemMes);
 
-        const totalAct = document.querySelectorAll("#multiselectActividad .chk-actividad").length;
+        const totalAct = document.querySelectorAll("#multiselectActividad input").length;
         const cumpleActividad = totalAct === 0 || filtroSelecciones.actividad.length === 0 || filtroSelecciones.actividad.includes(itemAct);
 
-        const totalCiudad = document.querySelectorAll("#multiselectCiudad .chk-ciudad").length;
+        const totalCiudad = document.querySelectorAll("#multiselectCiudad input").length;
         const cumpleCiudad = totalCiudad === 0 || filtroSelecciones.ciudad.length === 0 || filtroSelecciones.ciudad.includes(itemCiudad);
 
-        const totalZona = document.querySelectorAll("#multiselectZona .chk-zona").length;
+        const totalZona = document.querySelectorAll("#multiselectZona input").length;
         const cumpleZona = totalZona === 0 || filtroSelecciones.zona.length === 0 || filtroSelecciones.zona.includes(itemZona);
 
         return cumpleAno && cumpleMes && cumpleActividad && cumpleCiudad && cumpleZona;
     });
 
     actualizarDashboard();
+}
+
+function aplicarTodosLosFiltros() {
+    document.querySelectorAll('.custom-multiselect').forEach(container => {
+        const filterKey = container.dataset.filterKey;
+        const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input:checked'));
+        filtroSelecciones[filterKey] = checkedInputs.map(chk => chk.value);
+        actualizarTextoTrigger(container, filterKey);
+    });
+
+    document.getElementById('filters')?.classList.remove('is-open');
+    document.getElementById('toggleFiltersBtn')?.classList.remove('active');
+
+    aplicarFiltros();
 }
 
 function limpiarFiltros() {
@@ -423,8 +393,8 @@ function actualizarKPIs() {
         if (est === "completado") completadas++;
         if (est === "no realizada") noRealizadas++;
 
-        const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
-        const finRaw = item.Fin || item.FIN || item.Hora_Fin;
+        const inicioRaw = item.Inicio || item.Hora_Inicio;
+        const finRaw = item.Fin || item.Hora_Fin;
         let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
 
         if (est === "completado" && difMin !== null && difMin >= 0 && difMin < 720) {
@@ -439,7 +409,7 @@ function actualizarKPIs() {
             if (f && tecnico) {
                 const diaKey = `${f.getFullYear()}-${(f.getMonth() + 1).toString().padStart(2, '0')}-${f.getDate().toString().padStart(2, '0')}`;
 
-                let rguRaw = item.RGU ?? item.rgu ?? 0;
+                let rguRaw = item.RGU ?? 0;
                 if (typeof rguRaw === 'string') {
                     rguRaw = rguRaw.replace(',', '.').trim();
                 }
@@ -491,7 +461,6 @@ function actualizarKPIs() {
     if (document.getElementById("completadas")) document.getElementById("completadas").innerText = completadas;
     if (document.getElementById("pctCompletadas")) document.getElementById("pctCompletadas").innerText = pctCompVal;
     if (document.getElementById("noRealizadas")) document.getElementById("noRealizadas").innerText = noRealizadas;
-    if (document.getElementById("pctNoRealizadas")) document.getElementById("pctNoRealizadas").innerText = pctNoRealVal;
     if (document.getElementById("efectividad")) document.getElementById("efectividad").innerText = efectividadVal;
 
     const rguElem = document.getElementById("rguTotal");
@@ -503,9 +472,6 @@ function actualizarKPIs() {
     if (durElem) {
         durElem.innerText = duracionFormateada;
     }
-
-    renderizarMiniGraficoEfectividad(completadas, noRealizadas);
-    renderizarMiniGraficoDuracion();
 }
 
 // ==========================================
@@ -514,13 +480,6 @@ function actualizarKPIs() {
 
 function formatearHoraRedondeada(valor) {
     if (valor === null || valor === undefined || valor === "") return '-';
-
-    if (typeof valor === 'number') {
-        const totalMinutos = Math.round(valor * 24 * 60);
-        const hrs = String(Math.floor(totalMinutos / 60) % 24).padStart(2, '0');
-        const mins = String(totalMinutos % 60).padStart(2, '0');
-        return `${hrs}:${mins}`;
-    }
 
     if (typeof valor === 'string') {
         const str = valor.trim();
@@ -554,9 +513,10 @@ function renderizarTabla() {
 
     limiteData.forEach(item => {
         let tecnico = (item.Tecnico || '-').toString().trim();
+        let supervisor = (item.Supervisor || '-').toString().trim();
 
-        const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
-        const finRaw = item.Fin || item.FIN || item.Hora_Fin;
+        const inicioRaw = item.Inicio || item.Hora_Inicio;
+        const finRaw = item.Fin || item.Hora_Fin;
 
         const inicioFormateado = formatearHoraRedondeada(inicioRaw);
         const finFormateado = formatearHoraRedondeada(finRaw);
@@ -565,11 +525,12 @@ function renderizarTabla() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${tecnico}</td>
-            <td>${item.rut || item.Rut_o_Bucket || '-'}</td>
-            <td>${item.Tipo_de_Activi || item.Tipo_de_Actividad || '-'}</td>
-            <td>${item.orden || item.Orden_de_Trabajo || '-'}</td>
+            <td>${supervisor}</td>
+            <td>${item.Rut_o_Bucket || '-'}</td>
+            <td>${item.Tipo_de_Actividad || '-'}</td>
+            <td>${item.Orden_de_Trabajo || '-'}</td>
             <td>${item.Ciudad || '-'}</td>
-            <td>${item.Zona_de_traba || item.Zona_de_trabajo || '-'}</td>
+            <td>${item.Zona_de_trabajo || '-'}</td>
             <td>${inicioFormateado}</td>
             <td>${finFormateado}</td>
             <td>${item.Estado || '-'}</td>
@@ -638,11 +599,7 @@ function crearGraficoProduccion() {
                     align: context => (context.dataIndex % 2 === 0 ? 'end' : 'start'),
                     offset: 6,
                     color: '#1d2a57',
-                    font: {
-                        size: 11,
-                        weight: 'bold',
-                        family: 'Segoe UI, sans-serif'
-                    },
+                    font: { size: 11, weight: 'bold', family: 'Segoe UI, sans-serif' },
                     formatter: v => v !== null ? v.toString().replace('.', ',') + '%' : ''
                 }
             }]
@@ -650,12 +607,8 @@ function crearGraficoProduccion() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            layout: {
-                padding: { top: 25, bottom: 5, left: 10, right: 10 }
-            },
+            plugins: { legend: { display: false } },
+            layout: { padding: { top: 25, bottom: 5, left: 10, right: 10 } },
             scales: {
                 x: {
                     grid: { display: false },
@@ -689,7 +642,7 @@ function crearGraficoRGU() {
 
         if (!tecnico) return;
 
-        let rguRaw = item.RGU ?? item.rgu ?? 0;
+        let rguRaw = item.RGU ?? 0;
         if (typeof rguRaw === 'string') rguRaw = rguRaw.replace(',', '.').trim();
         const rguNum = Number(rguRaw) || 0;
 
@@ -798,8 +751,8 @@ function crearGraficoDuracion() {
         if (!f) return;
         const mNom = ordenMeses[f.getMonth()];
 
-        const inicioRaw = item.Inicio || item.INICIO || item.Hora_Inicio;
-        const finRaw = item.Fin || item.FIN || item.Hora_Fin;
+        const inicioRaw = item.Inicio || item.Hora_Inicio;
+        const finRaw = item.Fin || item.Hora_Fin;
 
         let difMin = calcularDiferenciaMinutos(inicioRaw, finRaw);
         if (difMin === null || difMin < 0) difMin = 0;
@@ -844,7 +797,7 @@ function crearGraficoDuracion() {
                     formatter: function (value) {
                         if (value === null || value === undefined) return '';
                         const hrs = Math.floor(value / 60);
-                        const mins = Math.round(value % 60);
+                        const mins = value % 60;
                         return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
                     }
                 }
@@ -853,10 +806,8 @@ function crearGraficoDuracion() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                padding: { top: 25, bottom: 5, left: 10, right: 10 }
-            },
             plugins: { legend: { display: false } },
+            layout: { padding: { top: 25, bottom: 5, left: 10, right: 10 } },
             scales: {
                 x: {
                     grid: { display: false },
@@ -867,38 +818,43 @@ function crearGraficoDuracion() {
                         font: { size: 12, weight: '600', family: 'Segoe UI, sans-serif' }
                     }
                 },
-                y: { display: false, beginAtZero: true, max: 160 }
+                y: { display: false, beginAtZero: true, grace: '20%' }
             }
         }
     });
 }
 
+// ==========================================
+// RENDERIZADO DE MINI GRÁFICOS (KPIS)
+// ==========================================
+
 function renderizarMiniGraficoEfectividad(completadas, noRealizadas) {
-    const canvas = document.getElementById("efectividadMiniChart");
+    const canvas = document.getElementById("miniEfectividadChart");
     if (!canvas) return;
 
-    if (miniEfectividadChartInstance) {
-        miniEfectividadChartInstance.destroy();
-    }
+    if (miniEfectividadChartInstance) miniEfectividadChartInstance.destroy();
+
+    const total = completadas + noRealizadas;
+    const data = total > 0 ? [completadas, noRealizadas] : [0, 1];
+    const colors = total > 0 ? ["#10b981", "#ef4444"] : ["#cbd5e1", "#e2e8f0"];
 
     miniEfectividadChartInstance = new Chart(canvas.getContext("2d"), {
         type: "doughnut",
         data: {
             labels: ["Completadas", "No Realizadas"],
             datasets: [{
-                data: [completadas, noRealizadas],
-                backgroundColor: ["#1d2a57", "#ef4444"],
-                borderWidth: 0,
-                hoverOffset: 3
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 0
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '70%',
+            cutout: '75%',
             plugins: {
                 legend: { display: false },
-                tooltip: { enabled: true },
+                tooltip: { enabled: total > 0 },
                 datalabels: { display: false }
             }
         }
@@ -906,6 +862,11 @@ function renderizarMiniGraficoEfectividad(completadas, noRealizadas) {
 }
 
 function renderizarMiniGraficoDuracion() {
+    const canvas = document.getElementById("miniDuracionChart");
+    if (!canvas) return;
+
+    if (miniDuracionChartInstance) miniDuracionChartInstance.destroy();
+
     const agrupar = {};
     ordenMeses.forEach(m => agrupar[m] = { sumaMinutos: 0, conteo: 0 });
 
@@ -924,23 +885,19 @@ function renderizarMiniGraficoDuracion() {
         }
     });
 
-    const dataMensual = ordenMeses.map(m => agrupar[m].conteo > 0 ? Math.round(agrupar[m].sumaMinutos / agrupar[m].conteo) : 0);
-
-    const canvas = document.getElementById("duracionMiniChart");
-    if (!canvas) return;
-
-    if (miniDuracionChartInstance) {
-        miniDuracionChartInstance.destroy();
-    }
+    const data = ordenMeses.map(m => agrupar[m].conteo > 0 ? Math.round(agrupar[m].sumaMinutos / agrupar[m].conteo) : 0);
 
     miniDuracionChartInstance = new Chart(canvas.getContext("2d"), {
-        type: "bar",
+        type: "line",
         data: {
             labels: ordenMeses,
             datasets: [{
-                data: dataMensual,
-                backgroundColor: "#1d2a57",
-                borderRadius: 2
+                data: data,
+                borderColor: "#3b82f6",
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.3,
+                fill: false
             }]
         },
         options: {
@@ -948,7 +905,7 @@ function renderizarMiniGraficoDuracion() {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                tooltip: { enabled: true },
+                tooltip: { enabled: false },
                 datalabels: { display: false }
             },
             scales: {
@@ -959,51 +916,54 @@ function renderizarMiniGraficoDuracion() {
     });
 }
 
-async function descargarDashboard() {
-    const contenedor = document.getElementById("dashboardCapture");
+// ==========================================
+// EXPORTACIÓN DE DATOS
+// ==========================================
 
-    if (!contenedor) {
-        alert("No se encontró el contenedor del dashboard para capturar.");
-        return;
-    }
+function descargarExcel() {
+    if (!filteredData || filteredData.length === 0) return;
+    const ws = XLSX.utils.json_to_sheet(filteredData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Datos_Filtrados");
+    XLSX.writeFile(wb, "Reporte_Actividades_Filtrado.xlsx");
+}
 
-    try {
-        const canvas = await html2canvas(contenedor, {
-            scale: 2,
-            backgroundColor: "#f8fafc",
-            useCORS: true,
-            logging: false
-        });
+function cambiarVista(vista, btnElement) {
+    // 1. Cambiar estado activo en botones
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
 
-        const link = document.createElement("a");
-        link.download = `Dashboard_RGU_${new Date().toISOString().slice(0, 10)}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-    } catch (error) {
-        console.error("Error al exportar la imagen:", error);
+    // 2. Ocultar todas las pestañas
+    document.querySelectorAll('.tab-view').forEach(view => view.classList.add('hidden'));
+
+    // 3. Mostrar la vista seleccionada
+    if (vista === 'hoy') {
+        document.getElementById('viewHoy').classList.remove('hidden');
+        cargarGraficosHoy();
+    } else if (vista === 'historico') {
+        document.getElementById('viewHistorico').classList.remove('hidden');
+    } else if (vista === 'detalles') {
+        document.getElementById('viewDetalles').classList.remove('hidden');
     }
 }
 
-function aplicarTodosLosFiltros() {
-    // Se cambia selector a input:checked para incluir checkboxes y radio buttons
-    document.querySelectorAll('.custom-multiselect').forEach(container => {
-        const filterKey = container.dataset.filterKey;
-        const checkedInputs = Array.from(container.querySelectorAll('.multiselect-options input:checked'));
-        
-        filtroSelecciones[filterKey] = checkedInputs.map(chk => chk.value);
-        actualizarTextoTrigger(container, filterKey);
+// Filtra datos únicamente de la fecha actual
+function cargarGraficosHoy() {
+    if (!rawExcelData || rawExcelData.length === 0) return;
+
+    const hoy = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
+    const datosHoy = rawExcelData.filter(item => {
+        if (!item.Fecha) return false;
+        const fechaIso = new Date(item.Fecha).toISOString().split('T')[0];
+        return fechaIso === hoy;
     });
 
-    // Cerrar menús desplegables abiertos
-    document.querySelectorAll('.multiselect-menu').forEach(m => m.classList.add('hidden'));
+    // Si hoy no hay registros, se pueden usar los datos más recientes como fallback
+    const dataAProcesar = datosHoy.length > 0 ? datosHoy : rawExcelData;
 
-    // Colapsar el contenedor principal de filtros
-    const filtersSection = document.getElementById('filters');
-    const toggleBtn = document.getElementById('toggleFiltersBtn');
-
-    if (filtersSection) filtersSection.classList.remove('is-open');
-    if (toggleBtn) toggleBtn.classList.remove('active');
-
-    // Ejecutar el filtrado con la selección actualizada
-    aplicarFiltros();
+    // Llama a tus funciones de renderizado pasando solo los datos del día
+    // renderizarChart1(dataAProcesar);
+    // renderizarChart2(dataAProcesar);
+    // renderizarChart3(dataAProcesar);
 }

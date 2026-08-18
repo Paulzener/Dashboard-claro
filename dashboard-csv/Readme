@@ -1,0 +1,9 @@
+--> Para instalar
+npm init -y
+npm install express mssql cors
+
+--> Para iniciar
+node server.js
+
+--> API BDD SQL SERVER
+server.js:
