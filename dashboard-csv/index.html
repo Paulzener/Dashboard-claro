@@ -203,10 +203,10 @@
 
                 <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 5px;">
                     <span style="color: #172554; font-weight: bold;">C:</span>
-                    <span id="completadas" style="color: #172554; font-weight: bold;">C: 0</span>
+                    <span id="completadas" style="color: #172554; font-weight: bold;">0</span>
                     <span>|</span>
                     <span style="color: red; font-weight: bold;">NR:</span>
-                    <span id="noRealizadas" style="color: red; font-weight: bold;">NR: 0</span>
+                    <span id="noRealizadas" style="color: red; font-weight: bold;">0</span>
                 </div>
             </div>
 
@@ -232,18 +232,42 @@
 
         <!-- Botones Píldora -->
         <div class="tabs-navigation">
-            <button class="tab-btn active" onclick="cambiarVista('hoy', this)">Hoy</button>
+            <button class="tab-btn active" onclick="cambiarVista('hoy', this)">Diario</button>
             <button class="tab-btn" onclick="cambiarVista('historico', this)">Histórico</button>
             <button class="tab-btn" onclick="cambiarVista('detalles', this)">Detalles</button>
         </div>
 
         <!-- VISTA 1: HOY -->
         <div id="viewHoy" class="tab-view">
+
             <div class="charts-grid">
-                <div class="chart-card"><canvas id="chartHoy1"></canvas></div>
-                <div class="chart-card"><canvas id="chartHoy2"></canvas></div>
-                <div class="chart-card"><canvas id="chartHoy3"></canvas></div>
+
+                <div class="chart-card">
+                    <h2>EFECTIVIDAD DIARIA</h2>
+                    <p>Últimos 7 días</p>
+                    <div class="chart-wrapper">
+                        <canvas id="chartHoy1"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h2>PROMEDIO RGU DIARIO</h2>
+                    <p>Últimos 7 días</p>
+                    <div class="chart-wrapper">
+                        <canvas id="chartHoy2"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h2>DURACIÓN PROMEDIO DIARIA</h2>
+                    <p>Últimos 7 días</p>
+                    <div class="chart-wrapper">
+                        <canvas id="chartHoy3"></canvas>
+                    </div>
+                </div>
+
             </div>
+
         </div>
 
         <!-- VISTA 2: HISTÓRICO (Mueve aquí tus gráficos actuales) -->
