@@ -238,29 +238,32 @@
         </div>
 
         <!-- VISTA 1: HOY -->
-        <div id="viewHoy" class="tab-view">
+        <div id="viewHoy" class="tab-view hidden" style="padding-top: 2rem;">
 
-            <div class="charts-grid">
+            <div class="grid-graficos-diarios">
 
-                <div class="chart-card">
+                <div class="card-grafico">
                     <h2>EFECTIVIDAD DIARIA</h2>
                     <p>Últimos 7 días</p>
+
                     <div class="chart-wrapper">
                         <canvas id="chartHoy1"></canvas>
                     </div>
                 </div>
 
-                <div class="chart-card">
+                <div class="card-grafico">
                     <h2>PROMEDIO RGU DIARIO</h2>
                     <p>Últimos 7 días</p>
+
                     <div class="chart-wrapper">
                         <canvas id="chartHoy2"></canvas>
                     </div>
                 </div>
 
-                <div class="chart-card">
+                <div class="card-grafico">
                     <h2>DURACIÓN PROMEDIO DIARIA</h2>
                     <p>Últimos 7 días</p>
+
                     <div class="chart-wrapper">
                         <canvas id="chartHoy3"></canvas>
                     </div>
@@ -273,7 +276,7 @@
         <!-- VISTA 2: HISTÓRICO (Mueve aquí tus gráficos actuales) -->
         <div id="viewHistorico" class="tab-view hidden" style="padding-top: 2rem;">
             <!-- CONTENEDOR CAPTURABLE (KPIs + GRÁFICOS CON TÍTULOS) -->
-            <div id="dashboardCapture" style="padding: 10px; background-color: #f8fafc; border-radius: 12px;">
+            <div id="dashboardCapture" >
 
                 <!-- GRÁFICOS -->
                 <div class="charts">

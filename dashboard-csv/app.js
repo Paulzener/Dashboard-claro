@@ -1933,7 +1933,7 @@ function crearGraficoRGU() {
                                     "start",
 
                                 align:
-                                    "bottom",
+                                    "top",
 
                                 offset: 4,
 
@@ -2243,6 +2243,15 @@ function crearGraficoDuracion() {
 
                         legend: {
                             display: false
+                        }
+                    },
+                    
+                    layout: {
+                        padding: {
+                            top: 25,
+                            bottom: 5,
+                            left: 10,
+                            right: 10
                         }
                     },
 
@@ -3412,6 +3421,7 @@ function crearGraficoHoyProduccion(data) {
                         data: porcentajes,
 
                         borderColor: "#1d2a57",
+
                         backgroundColor: "#1d2a57",
 
                         borderWidth: 2.5,
@@ -3422,12 +3432,36 @@ function crearGraficoHoyProduccion(data) {
 
                         pointRadius: 4,
 
+                        pointBackgroundColor:
+                            "#1d2a57",
+
+                        pointBorderColor:
+                            "#1d2a57",
+
                         datalabels: {
-                            color: "#1d2a57",
+
+                            anchor:
+                                context =>
+                                    context.dataIndex % 2 === 0
+                                        ? "top"
+                                        : "bottom",
+
+                            align:
+                                context =>
+                                    context.dataIndex % 2 === 0
+                                        ? "end"
+                                        : "start",
+
+                            offset: 6,
+
+                            color:
+                                "#1d2a57",
 
                             font: {
                                 size: 11,
-                                weight: "bold"
+                                weight: "bold",
+                                family:
+                                    "Segoe UI, sans-serif"
                             },
 
                             formatter: value =>
@@ -3439,9 +3473,7 @@ function crearGraficoHoyProduccion(data) {
                 },
 
                 options: {
-
                     responsive: true,
-
                     maintainAspectRatio: false,
 
                     plugins: {
@@ -3450,20 +3482,41 @@ function crearGraficoHoyProduccion(data) {
                         }
                     },
 
-                    scales: {
+                    layout: {
+                        padding: {
+                            top: 25,
+                            bottom: 5,
+                            left: 10,
+                            right: 10
+                        }
+                    },
 
+                    scales: {
                         x: {
                             grid: {
                                 display: false
+                            },
+
+                            border: {
+                                display: false
+                            },
+
+                            ticks: {
+                                color: "#1e293b",
+                                padding: 8,
+
+                                font: {
+                                    size: 12,
+                                    weight: "600",
+                                    family: "Segoe UI, sans-serif"
+                                }
                             }
                         },
 
                         y: {
                             display: false,
-
                             beginAtZero: true,
-
-                            max: 100
+                            grace: "20%"
                         }
                     }
                 }
@@ -3594,36 +3647,53 @@ function crearGraficoHoyRGU(data) {
 
                         data: valores,
 
-                        borderColor: "#172554",
-                        backgroundColor: "#172554",
+                        borderColor: "#1d2a57",
 
-                        borderWidth: 2,
+                        backgroundColor: "#1d2a57",
 
-                        tension: 0,
+                        borderWidth: 2.5,
 
-                        pointRadius: 3,
+                        tension: 0.2,
+
+                        spanGaps: true,
+
+                        pointRadius: 4,
 
                         datalabels: {
 
-                            color: "#172554",
+                            anchor:"top",
+
+                            align: "end",
+
+                            offset: 6,
+
+                            color:
+                                "#1d2a57",
 
                             font: {
                                 size: 11,
-                                weight: "bold"
+                                weight: "bold",
+                                family:
+                                    "Segoe UI, sans-serif"
                             },
 
-                            formatter: value =>
-                                value > 0
-                                    ? value.toString().replace(".", ",")
-                                    : ""
+                            formatter:
+                                value =>
+                                    
+                                    value !== null
+                                        ? value
+                                            .toString()
+                                            .replace(
+                                                ".",
+                                                ","
+                                            ) + ""
+                                        : ""
                         }
                     }]
                 },
 
                 options: {
-
                     responsive: true,
-
                     maintainAspectRatio: false,
 
                     plugins: {
@@ -3632,18 +3702,41 @@ function crearGraficoHoyRGU(data) {
                         }
                     },
 
-                    scales: {
+                    layout: {
+                        padding: {
+                            top: 25,
+                            bottom: 5,
+                            left: 10,
+                            right: 10
+                        }
+                    },
 
+                    scales: {
                         x: {
                             grid: {
                                 display: false
+                            },
+
+                            border: {
+                                display: false
+                            },
+
+                            ticks: {
+                                color: "#1e293b",
+                                padding: 8,
+
+                                font: {
+                                    size: 12,
+                                    weight: "600",
+                                    family: "Segoe UI, sans-serif"
+                                }
                             }
                         },
 
                         y: {
                             display: false,
-
-                            beginAtZero: true
+                            beginAtZero: true,
+                            grace: "0%"
                         }
                     }
                 }
@@ -3761,23 +3854,47 @@ function crearGraficoHoyDuracion(data) {
                         data: valores,
 
                         borderColor: "#1d2a57",
+
                         backgroundColor: "#1d2a57",
 
                         borderWidth: 2.5,
 
-                        tension: 0,
+                        tension: 0.2,
 
                         spanGaps: true,
 
-                        pointRadius: 3,
+                        pointRadius: 4,
+
+                        pointBackgroundColor:
+                            "#1d2a57",
+
+                        pointBorderColor:
+                            "#1d2a57",
 
                         datalabels: {
 
-                            color: "#172554",
+                            anchor:
+                                context =>
+                                    context.dataIndex % 2 === 0
+                                        ? "top"
+                                        : "bottom",
+
+                            align:
+                                context =>
+                                    context.dataIndex % 2 === 0
+                                        ? "end"
+                                        : "start",
+
+                            offset: 6,
+
+                            color:
+                                "#1d2a57",
 
                             font: {
-                                size: 10,
-                                weight: "bold"
+                                size: 11,
+                                weight: "bold",
+                                family:
+                                    "Segoe UI, sans-serif"
                             },
 
                             formatter: function (value) {
@@ -3802,9 +3919,7 @@ function crearGraficoHoyDuracion(data) {
                 },
 
                 options: {
-
                     responsive: true,
-
                     maintainAspectRatio: false,
 
                     plugins: {
@@ -3813,18 +3928,41 @@ function crearGraficoHoyDuracion(data) {
                         }
                     },
 
-                    scales: {
+                    layout: {
+                        padding: {
+                            top: 20,
+                            bottom: 30,
+                            left: 10,
+                            right: 10
+                        }
+                    },
 
+                    scales: {
                         x: {
                             grid: {
                                 display: false
+                            },
+
+                            border: {
+                                display: false
+                            },
+
+                            ticks: {
+                                color: "#1e293b",
+                                padding: 15,
+
+                                font: {
+                                    size: 12,
+                                    weight: "600",
+                                    family: "Segoe UI, sans-serif"
+                                }
                             }
                         },
 
                         y: {
                             display: false,
-
-                            beginAtZero: true
+                            beginAtZero: true,
+                            grace: "20%"
                         }
                     }
                 }
