@@ -202,11 +202,11 @@
                 <strong id="efectividad">0%</strong>
 
                 <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 5px;">
-                    <span>C:</span>
-                    <span id="completadas">C: 0</span>
+                    <span style="color: #172554; font-weight: bold;">C:</span>
+                    <span id="completadas" style="color: #172554; font-weight: bold;">C: 0</span>
                     <span>|</span>
-                    <span>NR:</span>
-                    <span id="noRealizadas">NR: 0</span>
+                    <span style="color: red; font-weight: bold;">NR:</span>
+                    <span id="noRealizadas" style="color: red; font-weight: bold;">NR: 0</span>
                 </div>
             </div>
 
@@ -238,7 +238,7 @@
         </div>
 
         <!-- VISTA 1: HOY -->
-        <div id="viewHoy" class="tab-view" >
+        <div id="viewHoy" class="tab-view">
             <div class="charts-grid">
                 <div class="chart-card"><canvas id="chartHoy1"></canvas></div>
                 <div class="chart-card"><canvas id="chartHoy2"></canvas></div>
@@ -284,33 +284,34 @@
         <!-- VISTA 3: DETALLES (Mueve aquí tu tabla actual) -->
         <div id="viewDetalles" class="tab-view hidden" style="padding-top: 2.5rem;">
             <!-- TABLA -->
-        <section id="tableSection" class="table-section hidden">
-            <h2>Detalle de actividades</h2>
-            <div class="table-wrapper">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Técnico</th>
-                            <th>RUT / Bucket</th>
-                            <th>Tipo Actividad</th>
-                            <th>Orden Trabajo</th>
-                            <th>Ciudad</th>
-                            <th>Zona Trabajo</th>
-                            <th>Inicio</th>
-                            <th>Fin</th>
-                            <th>Estado</th>
-                            <th>Fecha</th>
-                            <th>RGU</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dataTable">
-                        <!-- Se llena con JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="rowCount"></div>
-        </section>
-        </div>        
+            <section id="tableSection" class="table-section hidden">
+                <h2>Detalle de actividades</h2>
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Técnico</th>
+                                <th>Supervisor</th>
+                                <th>RUT / Bucket</th>
+                                <th>Tipo Actividad</th>
+                                <th>Orden Trabajo</th>
+                                <th>Ciudad</th>
+                                <th>Zona Trabajo</th>
+                                <th>Inicio</th>
+                                <th>Fin</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>RGU</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTable">
+                            <!-- Se llena con JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="rowCount"></div>
+            </section>
+        </div>
     </main>
 
     <script src="app.js"></script>

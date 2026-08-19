@@ -40,41 +40,47 @@ app.get('/', (req, res) => {
 app.get('/api/actividades', async (req, res) => {
     try {
         const pool = await poolPromise;
+
         if (!pool) {
-            return res.status(500).json({ error: "No hay conexión disponible con SQL Server." });
+            return res.status(500).json({
+                error: "No hay conexión disponible con SQL Server."
+            });
         }
 
         const result = await pool.request().query(`
-            SELECT 
-                ,[pasos]
-                ,[Tecnico]
-                ,[Orden_de_Trabajo]
-                ,[Tipo_de_Actividad]
-                ,[Ciudad]
-                ,[Zona]
-                ,[Zona_de_trabajo]
-                ,[Inicio]
-                ,[Fin]
-                ,[Estado_de_la_actividad]
-                ,[Nro_Orden]
-                ,[Codigo_de_Cierre]
-                ,[Estado]
-                ,[Tipo_Red]
-                ,[Rut_o_Bucket]
-                ,[Nombre]
-                ,[Supervisor]
-                ,[Numero_Cliente]
-                ,[Cantidad_Extensores]
-                ,[Cantidad_Planes]
-                ,[Cantidad_DBox]
-                ,[RGU]
+            SELECT
+                [Origen] AS [Fecha],
+                [pasos],
+                [Tecnico],
+                [Orden_de_Trabajo],
+                [Tipo_de_Actividad],
+                [Ciudad],
+                [Zona],
+                [Zona_de_trabajo],
+                [Inicio],
+                [Fin],
+                [Estado_de_la_actividad],
+                [Nro_Orden],
+                [Codigo_de_Cierre],
+                [Estado],
+                [Tipo_Red],
+                [Rut_o_Bucket],
+                [Nombre],
+                [Supervisor],
+                [Numero_Cliente],
+                [Cantidad_Extensores],
+                [Cantidad_Planes],
+                [Cantidad_DBox],
+                [RGU]
             FROM dbo.ClaroVTR_RGU
         `);
 
         res.json(result.recordset);
+
     } catch (err) {
-        // Muestra el mensaje detallado de SQL Server en la respuesta HTTP
+
         console.error('❌ Error de SQL Server:', err);
+
         res.status(500).json({
             error: "Error interno del servidor",
             detalle: err.message,
