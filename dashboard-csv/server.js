@@ -1,3 +1,5 @@
+require('dotenv').config(); // Carga las variables de .env al iniciar
+
 const express = require('express');
 const sql = require('mssql');
 const cors = require('cors');
@@ -7,15 +9,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Servir archivos estáticos del frontend
 app.use(express.static(__dirname));
 
-// Configuración de conexión
+// Configuración leída desde el archivo .env
 const dbConfig = {
-    user: 'paul.hidalgo',
-    password: 'P@u1.2026',
-    server: '172.30.0.129',
-    database: 'VTR', // <-- REEMPLAZA ESTO por el nombre real de la BD
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    server: process.env.DB_SERVER,
+    database: process.env.DB_NAME,
     options: {
         encrypt: false,
         trustServerCertificate: true
@@ -45,7 +46,28 @@ app.get('/api/actividades', async (req, res) => {
 
         const result = await pool.request().query(`
             SELECT 
-                *
+                ,[pasos]
+                ,[Tecnico]
+                ,[Orden_de_Trabajo]
+                ,[Tipo_de_Actividad]
+                ,[Ciudad]
+                ,[Zona]
+                ,[Zona_de_trabajo]
+                ,[Inicio]
+                ,[Fin]
+                ,[Estado_de_la_actividad]
+                ,[Nro_Orden]
+                ,[Codigo_de_Cierre]
+                ,[Estado]
+                ,[Tipo_Red]
+                ,[Rut_o_Bucket]
+                ,[Nombre]
+                ,[Supervisor]
+                ,[Numero_Cliente]
+                ,[Cantidad_Extensores]
+                ,[Cantidad_Planes]
+                ,[Cantidad_DBox]
+                ,[RGU]
             FROM dbo.ClaroVTR_RGU
         `);
 
@@ -53,10 +75,10 @@ app.get('/api/actividades', async (req, res) => {
     } catch (err) {
         // Muestra el mensaje detallado de SQL Server en la respuesta HTTP
         console.error('❌ Error de SQL Server:', err);
-        res.status(500).json({ 
-            error: "Error interno del servidor", 
-            detalle: err.message, 
-            sqlState: err.code 
+        res.status(500).json({
+            error: "Error interno del servidor",
+            detalle: err.message,
+            sqlState: err.code
         });
     }
 });
