@@ -63,18 +63,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     inicializarMultiselects();
 
-    document
-        .getElementById("clearFilters")
-        ?.addEventListener(
-            "click",
-            limpiarFiltros
-        );
+
 
     document
         .getElementById("applyAllFilters")
         ?.addEventListener(
             "click",
             aplicarTodosLosFiltros
+        );
+
+    document
+        .getElementById("clearFilters")
+        ?.addEventListener(
+            "click",
+            limpiarFiltros
         );
 
 
@@ -197,25 +199,16 @@ function cargarDatosDesdeAPI() {
                 };
             });
 
-            filteredData = [...rawData];
-
-            console.log("Total registros:", rawData.length);
-
             poblarFiltros(rawData);
-
             mostrarSecciones();
 
-            // La aplicación comienza siempre en HOY
+            console.log("ANTES DE aplicarFiltros:", rawData.length);
+
             vistaActual = "hoy";
 
-            // Mostrar KPIs y gráficos de HOY
-            actualizarVistaHoy();
-
             aplicarFiltros();
-            // 4. DIAGNÓSTICO (AQUÍ AL FINAL)
-            const excluidos = rawData.filter(item => !filteredData.includes(item));
-            console.log("Cantidad de excluidos:", excluidos.length);
-            console.log("Registros excluidos:", excluidos);
+
+            console.log("DESPUÉS DE aplicarFiltros:", filteredData.length);
         })
         .catch(error => {
 
@@ -2691,7 +2684,10 @@ function actualizarVistaHoy() {
     }
 
     // Primero respetamos los filtros
-    const datosFiltrados = obtenerDatosFiltrados();
+    const datosFiltrados = filteredData;
+    console.log("🔴 KPI - obtenerDatosFiltrados:", datosFiltrados.length);
+    console.log("🔴 KPI - rawData:", rawData.length);
+    console.log("🔴 KPI - filteredData:", filteredData.length);
 
     // Obtener datos desde hoy hacia atrás
     datosVistaHoy = obtenerDatosUltimosDias(datosFiltrados, 7);
@@ -2708,49 +2704,88 @@ function actualizarVistaHoy() {
 }
 
 function obtenerDatosFiltrados() {
+    const totalAno =
+        document.querySelectorAll(
+            "#multiselectAno .multiselect-options input"
+        ).length;
 
-    return rawData.filter(item => {
+    const totalMes =
+        document.querySelectorAll(
+            "#multiselectMes .multiselect-options input"
+        ).length;
 
-        const fechaObj = obtenerFechaObjeto(item);
+    const totalActividad =
+        document.querySelectorAll(
+            "#multiselectActividad .multiselect-options input"
+        ).length;
 
-        const itemAno = fechaObj
-            ? fechaObj.getFullYear().toString()
-            : "";
+    const totalCiudad =
+        document.querySelectorAll(
+            "#multiselectCiudad .multiselect-options input"
+        ).length;
 
-        const itemMes = fechaObj
-            ? ordenMeses[fechaObj.getMonth()]
-            : "";
+    const totalZona =
+        document.querySelectorAll(
+            "#multiselectZona .multiselect-options input"
+        ).length;
 
-        const itemAct = (item.Tipo_de_Actividad || "")
-            .toString()
-            .trim();
+    const resultado = rawData.filter(item => {
+        const fechaObj =
+            obtenerFechaObjeto(item);
 
-        const itemCiudad = (item.Ciudad || "")
-            .toString()
-            .trim();
+        const itemAno =
+            fechaObj
+                ? String(fechaObj.getFullYear())
+                : "";
 
-        const itemZona = (item.Zona_de_trabajo || "")
-            .toString()
-            .trim();
+        const itemMes =
+            fechaObj
+                ? ordenMeses[fechaObj.getMonth()]
+                : "";
+
+        const itemActividad =
+            String(
+                item.Tipo_de_Actividad ?? ""
+            ).trim();
+
+        const itemCiudad =
+            String(
+                item.Ciudad ?? ""
+            ).trim();
+
+        const itemZona =
+            String(
+                item.Zona_de_trabajo ?? ""
+            ).trim();
 
         const cumpleAno =
+            totalAno === 0 ||
             filtroSelecciones.ano.length === 0 ||
+            filtroSelecciones.ano.length === totalAno ||
             filtroSelecciones.ano.includes(itemAno);
 
         const cumpleMes =
+            totalMes === 0 ||
             filtroSelecciones.mes.length === 0 ||
+            filtroSelecciones.mes.length === totalMes ||
             filtroSelecciones.mes.includes(itemMes);
 
         const cumpleActividad =
+            totalActividad === 0 ||
             filtroSelecciones.actividad.length === 0 ||
-            filtroSelecciones.actividad.includes(itemAct);
+            filtroSelecciones.actividad.length === totalActividad ||
+            filtroSelecciones.actividad.includes(itemActividad);
 
         const cumpleCiudad =
+            totalCiudad === 0 ||
             filtroSelecciones.ciudad.length === 0 ||
+            filtroSelecciones.ciudad.length === totalCiudad ||
             filtroSelecciones.ciudad.includes(itemCiudad);
 
         const cumpleZona =
+            totalZona === 0 ||
             filtroSelecciones.zona.length === 0 ||
+            filtroSelecciones.zona.length === totalZona ||
             filtroSelecciones.zona.includes(itemZona);
 
         return (
@@ -2761,7 +2796,16 @@ function obtenerDatosFiltrados() {
             cumpleZona
         );
     });
+
+    console.log("Resultado obtenerDatosFiltrados:", {
+        raw: rawData.length,
+        resultado: resultado.length,
+        excluidos: rawData.length - resultado.length
+    });
+
+    return resultado;
 }
+
 // ==========================================
 // VISTA HOY
 // ==========================================
@@ -3228,8 +3272,7 @@ function actualizarKPIsVista(data) {
     // ACTUALIZAR HTML
     // ==========================================
 
-    const totalElem =
-        document.getElementById("totalOrdenes");
+    const totalElem = document.getElementById("totalOrdenes");
 
     if (totalElem) {
         totalElem.innerText = total;
