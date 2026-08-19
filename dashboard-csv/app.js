@@ -2245,7 +2245,7 @@ function crearGraficoDuracion() {
                             display: false
                         }
                     },
-                    
+
                     layout: {
                         padding: {
                             top: 25,
@@ -3388,9 +3388,20 @@ function crearGraficoHoyProduccion(data) {
                 ? Number(((c / total) * 100).toFixed(1))
                 : null;
 
-        labels.push(
+        const diasSemana = [
+            "Domingo",
+            "Lunes",
+            "Martes",
+            "Miércoles",
+            "Jueves",
+            "Viernes",
+            "Sábado"
+        ];
+
+        labels.push([
+            diasSemana[fecha.getDay()],
             `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}`
-        );
+        ]);
 
         completados.push(c);
         noRealizadas.push(nr);
@@ -3615,9 +3626,20 @@ function crearGraficoHoyRGU(data) {
                 listaTecnicos.length;
         }
 
-        labels.push(
+        const diasSemana = [
+            "Domingo",
+            "Lunes",
+            "Martes",
+            "Miércoles",
+            "Jueves",
+            "Viernes",
+            "Sábado"
+        ];
+
+        labels.push([
+            diasSemana[fecha.getDay()],
             `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}`
-        );
+        ]);
 
         valores.push(
             Number(promedio.toFixed(1))
@@ -3661,7 +3683,7 @@ function crearGraficoHoyRGU(data) {
 
                         datalabels: {
 
-                            anchor:"top",
+                            anchor: "top",
 
                             align: "end",
 
@@ -3679,7 +3701,7 @@ function crearGraficoHoyRGU(data) {
 
                             formatter:
                                 value =>
-                                    
+
                                     value !== null
                                         ? value
                                             .toString()
@@ -3823,9 +3845,20 @@ function crearGraficoHoyDuracion(data) {
                 ? Math.round(suma / cantidad)
                 : null;
 
-        labels.push(
+        const diasSemana = [
+            "Domingo",
+            "Lunes",
+            "Martes",
+            "Miércoles",
+            "Jueves",
+            "Viernes",
+            "Sábado"
+        ];
+
+        labels.push([
+            diasSemana[fecha.getDay()],
             `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}`
-        );
+        ]);
 
         valores.push(promedio);
     }
