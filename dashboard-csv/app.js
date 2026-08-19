@@ -2598,6 +2598,8 @@ function descargarExcel() {
 function cambiarVista(vista, btnElement) {
 
     vistaActual = vista;
+    document.getElementById('kpis')
+    ?.classList.toggle('hidden', vista === 'detalles');
 
     // Cambiar botón activo
     document.querySelectorAll('.tab-btn').forEach(btn => {
