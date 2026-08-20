@@ -2955,7 +2955,7 @@ function crearGraficoRGU() {
 
                                         return (
                                             value
-                                                .toFixed(2)
+                                                .toFixed(1)
                                                 .replace(".", ",")
                                         );
                                     }
