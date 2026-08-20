@@ -121,11 +121,6 @@ function cargarDatosDesdeAPI() {
         })
         .then(data => {
             console.log("Filas totales devueltas por API:", data.length);
-            console.log("Órdenes de Trabajo únicas:", new Set(data.map(i => i.Orden_de_Trabajo || i.ORDEN_DE_TRABAJO)).size);
-
-            console.log("Datos recibidos:", data);
-
-
 
             rawData = data.map(item => {
 
@@ -205,13 +200,11 @@ function cargarDatosDesdeAPI() {
             poblarFiltros(rawData);
             mostrarSecciones();
 
-            console.log("ANTES DE aplicarFiltros:", rawData.length);
 
             vistaActual = "hoy";
 
             aplicarFiltros();
 
-            console.log("DESPUÉS DE aplicarFiltros:", filteredData.length);
         })
         .catch(error => {
 
@@ -735,6 +728,8 @@ function calcularDiferenciaMinutos(
         );
 
 
+    // Igual que SQL:
+    // si alguno está vacío → NULL
     if (
         minInicio === null ||
         minFin === null
@@ -743,17 +738,18 @@ function calcularDiferenciaMinutos(
     }
 
 
-    let diferencia =
-        minFin - minInicio;
+    // Igual que:
+    // WHEN [Fin] < [Inicio] THEN 0
 
-
-    if (diferencia < 0) {
-
-        diferencia += 1440;
+    if (minFin < minInicio) {
+        return 0;
     }
 
 
-    return diferencia;
+    // Igual que:
+    // DATEDIFF(SECOND, Inicio, Fin) / 60.0
+
+    return minFin - minInicio;
 }
 
 
@@ -984,9 +980,6 @@ function aplicarFiltros() {
 
     console.log("Filtros aplicados:", filtroSelecciones);
     console.log("Registros originales:", rawData.length);
-    console.log("Registros filtrados:", filteredData.length);
-    console.log("RAW:", rawData.length);
-    console.log("FILTRADOS:", filteredData.length);
 
     const años = {};
 
@@ -1684,22 +1677,7 @@ function crearGraficoProduccion() {
 // ==========================================
 
 function crearGraficoRGU() {
-    const ordenMeses = [
-        "Ene",
-        "Feb",
-        "Mar",
-        "Abr",
-        "May",
-        "Jun",
-        "Jul",
-        "Ago",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dic"
-    ];
 
-    let actividadChartInstance = null;
     // ==========================================
     // VALIDACIONES
     // ==========================================
@@ -1744,10 +1722,7 @@ function crearGraficoRGU() {
         )
     ].sort();
 
-    console.log(
-        "Años encontrados en filteredData:",
-        aniosDetectados
-    );
+
     ordenMeses.forEach(mes => {
         agrupacion[mes] = {};
     });
@@ -2407,89 +2382,6 @@ function crearGraficoRGU() {
         diagnostico.incluidos++;
     });
 
-    // ==========================================
-    // CANTIDAD DE TÉCNICOS ÚNICOS POR MES
-    // ==========================================
-
-    const cantidadTecnicosPorMes =
-        ordenMeses.map(mes => {
-
-            const gruposTecnicos =
-                Object.values(
-                    agrupacion[mes] ?? {}
-                );
-
-            const nombres =
-                gruposTecnicos
-                    .map(grupo => {
-                        return grupo.nombre;
-                    })
-                    .sort((a, b) => {
-                        return a.localeCompare(
-                            b,
-                            "es-CL",
-                            {
-                                sensitivity:
-                                    "base"
-                            }
-                        );
-                    });
-
-            return {
-                Mes:
-                    mes,
-
-                TotalTecnicosUnicos:
-                    nombres.length,
-
-                Tecnicos:
-                    nombres.join(", ")
-            };
-        });
-
-    console.group(
-        "CANTIDAD DE TÉCNICOS ÚNICOS POR MES"
-    );
-
-    console.table(
-        cantidadTecnicosPorMes
-    );
-
-    console.groupEnd();
-
-    // ==========================================
-    // MOSTRAR TÉCNICOS POR MES EN GRUPOS
-    // ==========================================
-
-    console.group(
-        "DETALLE DE TÉCNICOS POR MES"
-    );
-
-    cantidadTecnicosPorMes.forEach(item => {
-
-        console.group(
-            `${item.Mes}: ${item.TotalTecnicosUnicos} técnicos`
-        );
-
-        const nombres =
-            item.Tecnicos
-                ? item.Tecnicos.split(", ")
-                : [];
-
-        console.table(
-            nombres.map((nombre, indice) => ({
-                Numero:
-                    indice + 1,
-
-                Tecnico:
-                    nombre
-            }))
-        );
-
-        console.groupEnd();
-    });
-
-    console.groupEnd();
 
     // ==========================================
     // CALCULAR PROMEDIOS
@@ -2643,176 +2535,6 @@ function crearGraficoRGU() {
                 promedioGeneral
             );
         });
-
-    // ==========================================
-    // DIAGNÓSTICO GENERAL
-    // ==========================================
-
-    console.group(
-        "DIAGNÓSTICO RGU"
-    );
-
-    console.log(
-        "Resumen de registros:",
-        diagnostico
-    );
-
-    console.log(
-        "Agrupación completa:",
-        agrupacion
-    );
-
-    if (
-        transformacionesTecnicos.size > 0
-    ) {
-        console.log(
-            "Transformaciones de nombres:"
-        );
-
-        console.table(
-            Array.from(
-                transformacionesTecnicos.values()
-            )
-        );
-    }
-
-    // ==========================================
-    // DETALLE DE PROMEDIOS POR MES
-    // ==========================================
-
-    ordenMeses.forEach(
-        (mes, indice) => {
-
-            const valorMes =
-                promedios[indice];
-
-            console.group(
-                `${mes}: ${valorMes === null
-                    ? "Sin datos"
-                    : valorMes
-                }`
-            );
-
-            console.table(
-                detalleCalculo[mes].map(
-                    item => ({
-                        Tecnico:
-                            item.tecnico,
-
-                        Origenes:
-                            item.cantidadOrigenes,
-
-                        SumaRGU:
-                            Number(
-                                item.sumaRGU
-                                    .toFixed(6)
-                            ),
-
-                        PromedioTecnico:
-                            Number(
-                                item
-                                    .promedioTecnico
-                                    .toFixed(6)
-                            )
-                    })
-                )
-            );
-
-            console.log(
-                "Promedio sin redondear:",
-                promediosSinRedondear[
-                indice
-                ]
-            );
-
-            console.log(
-                "Promedio mostrado:",
-                promedios[indice]
-            );
-
-            console.groupEnd();
-        }
-    );
-
-    console.log(
-        "Promedios finales:",
-        promedios
-    );
-
-    console.groupEnd();
-
-    // ==========================================
-    // VALORES ESPERADOS DE POWER BI
-    // ==========================================
-
-    const valoresPowerBI = [
-        3.02, // Ene
-        3.30, // Feb
-        3.09, // Mar
-        3.05, // Abr
-        3.20, // May
-        3.38, // Jun
-        3.15, // Jul
-        3.42, // Ago
-        null, // Sep
-        null, // Oct
-        null, // Nov
-        null  // Dic
-    ];
-
-    // ==========================================
-    // COMPARACIÓN CON POWER BI
-    // ==========================================
-
-    console.group(
-        "COMPARACIÓN JAVASCRIPT VS POWER BI"
-    );
-
-    console.table(
-        ordenMeses.map((mes, indice) => {
-            const valorJavaScript =
-                promedios[indice];
-
-            const valorPowerBI =
-                valoresPowerBI[indice] !== undefined
-                    ? valoresPowerBI[indice]
-                    : null;
-
-            /*
-             * Usar exactamente la misma agrupación
-             * empleada para calcular los promedios.
-             */
-            const cantidadTecnicos =
-                Object.keys(
-                    agrupacion[mes] ?? {}
-                ).length;
-
-            let diferencia = null;
-
-            if (
-                valorJavaScript !== null &&
-                valorPowerBI !== null
-            ) {
-                diferencia = Number(
-                    (
-                        valorJavaScript -
-                        valorPowerBI
-                    ).toFixed(4)
-                );
-            }
-
-            return {
-                Mes: mes,
-                JavaScript: valorJavaScript,
-                "Power BI": valorPowerBI,
-                Diferencia: diferencia,
-                "Cantidad Técnicos": cantidadTecnicos
-            };
-        })
-    );
-
-
-    console.groupEnd();
 
     // ==========================================
     // META
@@ -3150,91 +2872,249 @@ function crearGraficoRGU() {
 
 
 // ==========================================
-// DURACIÓN
+// DURACIÓN PROMEDIO
 // ==========================================
 
 function crearGraficoDuracion() {
 
-    const agrupar = {};
+    // ==========================================
+    // NIVEL 1
+    // Promedio diario por técnico
+    // ==========================================
 
-
-    ordenMeses.forEach(mes => {
-
-        agrupar[mes] = {
-            sumaMinutos: 0,
-            conteo: 0
-        };
-    });
-
+    const datosDiarios = {};
 
     filteredData.forEach(item => {
 
-        const fecha =
-            obtenerFechaObjeto(item);
+        const fecha = obtenerFechaObjeto(item);
 
         if (!fecha) return;
 
 
         const mes =
-            ordenMeses[
-            fecha.getMonth()
-            ];
+            ordenMeses[fecha.getMonth()];
 
 
         const estado =
-            String(
-                item.Estado ?? ""
-            )
+            String(item.Estado ?? "")
                 .trim()
                 .toLowerCase();
 
 
+        // Solo completadas
         if (estado !== "completado") {
             return;
         }
+
+
+        const tecnico =
+            item.Tecnico === null ||
+                item.Tecnico === undefined
+                ? "__TECNICO_NULL__"
+                : String(item.Tecnico);
+
+
+        if (!tecnico) {
+            return;
+        }
+
+
+        // ==========================================
+        // IMPORTANTE:
+        // Usamos fecha LOCAL, NO toISOString()
+        // ==========================================
+
+        const dia =
+            fecha.getFullYear() +
+            "-" +
+            String(
+                fecha.getMonth() + 1
+            ).padStart(2, "0") +
+            "-" +
+            String(
+                fecha.getDate()
+            ).padStart(2, "0");
 
 
         const inicio =
             item.Inicio ??
             item.Hora_Inicio;
 
+
         const fin =
             item.Fin ??
             item.Hora_Fin;
 
 
-        const diferencia =
+        let diferencia =
             calcularDiferenciaMinutos(
                 inicio,
                 fin
             );
 
 
+        // ==========================================
+        // MISMA LÓGICA DEL SQL
+        // ==========================================
+
         if (
-            diferencia !== null &&
-            diferencia >= 0 &&
-            diferencia < 720
+            diferencia === null ||
+            diferencia < 0
         ) {
-
-            agrupar[mes].sumaMinutos +=
-                diferencia;
-
-            agrupar[mes].conteo++;
+            diferencia = 0;
         }
+
+
+        // ==========================================
+        // MES
+        //   └── TÉCNICO
+        //         └── DÍA
+        // ==========================================
+
+        if (!datosDiarios[mes]) {
+
+            datosDiarios[mes] = {};
+        }
+
+
+        if (!datosDiarios[mes][tecnico]) {
+
+            datosDiarios[mes][tecnico] = {};
+        }
+
+
+        if (!datosDiarios[mes][tecnico][dia]) {
+
+            datosDiarios[mes][tecnico][dia] = {
+                suma: 0,
+                cantidad: 0
+            };
+        }
+
+
+        datosDiarios[mes][tecnico][dia].suma +=
+            diferencia;
+
+
+        datosDiarios[mes][tecnico][dia].cantidad++;
     });
 
+
+    // ==========================================
+    // NIVEL 2
+    // Promedio mensual de cada técnico
+    // a partir de sus promedios diarios
+    // ==========================================
+
+    const promediosTecnicos = {};
+
+
+    ordenMeses.forEach(mes => {
+
+        promediosTecnicos[mes] = {};
+
+
+        if (!datosDiarios[mes]) {
+            return;
+        }
+
+
+        Object.keys(
+            datosDiarios[mes]
+        ).forEach(tecnico => {
+
+            const dias =
+                datosDiarios[mes][tecnico];
+
+
+            const promediosDiarios =
+                Object.values(dias).map(dia => {
+
+                    return dia.cantidad > 0
+                        ? dia.suma / dia.cantidad
+                        : 0;
+                });
+
+
+            if (
+                promediosDiarios.length === 0
+            ) {
+                return;
+            }
+
+
+            const sumaPromedios =
+                promediosDiarios.reduce(
+                    (suma, promedio) =>
+                        suma + promedio,
+                    0
+                );
+
+
+            promediosTecnicos[mes][tecnico] =
+                sumaPromedios /
+                promediosDiarios.length;
+        });
+    });
+
+
+    // ==========================================
+    // NIVEL 3
+    // Promedio de los técnicos del mes
+    // ==========================================
 
     const promedios =
         ordenMeses.map(mes => {
 
-            return agrupar[mes].conteo > 0
-                ? Math.round(
-                    agrupar[mes].sumaMinutos /
-                    agrupar[mes].conteo
-                )
-                : null;
+            const tecnicos =
+                Object.values(
+                    promediosTecnicos[mes] || {}
+                );
+
+
+            if (tecnicos.length === 0) {
+                return null;
+            }
+
+
+            const suma =
+                tecnicos.reduce(
+                    (total, promedio) =>
+                        total + promedio,
+                    0
+                );
+
+
+            return Math.round(
+                suma / tecnicos.length
+            );
         });
 
+
+    // ==========================================
+    // DEBUG
+    // ==========================================
+
+    console.log(
+        "📊 PROMEDIOS DURACIÓN:",
+        ordenMeses.map(
+            (mes, index) => ({
+                mes: mes,
+                minutos: promedios[index],
+                hhmm:
+                    promedios[index] !== null
+                        ? convertirMinutosHHMM(
+                            promedios[index]
+                        )
+                        : null
+            })
+        )
+    );
+
+
+    // ==========================================
+    // CANVAS
+    // ==========================================
 
     const canvas =
         document.getElementById(
@@ -3245,10 +3125,13 @@ function crearGraficoDuracion() {
 
 
     if (duracionChartInstance) {
-
         duracionChartInstance.destroy();
     }
 
+
+    // ==========================================
+    // GRÁFICO
+    // ==========================================
 
     duracionChartInstance =
         new Chart(
@@ -3275,13 +3158,17 @@ function crearGraficoDuracion() {
                         backgroundColor:
                             "#1d2a57",
 
-                        borderWidth: 2.5,
+                        borderWidth:
+                            2.5,
 
-                        tension: 0,
+                        tension:
+                            0,
 
-                        spanGaps: true,
+                        spanGaps:
+                            true,
 
-                        pointRadius: 3,
+                        pointRadius:
+                            3,
 
                         datalabels: {
 
@@ -3297,14 +3184,20 @@ function crearGraficoDuracion() {
                                         ? "end"
                                         : "start",
 
-                            offset: 4,
+                            offset:
+                                4,
 
                             color:
                                 "#172554",
 
                             font: {
-                                weight: "bold",
-                                size: 10,
+
+                                weight:
+                                    "bold",
+
+                                size:
+                                    10,
+
                                 family:
                                     "Segoe UI, sans-serif"
                             },
@@ -3320,29 +3213,8 @@ function crearGraficoDuracion() {
                                     }
 
 
-                                    const horas =
-                                        Math.floor(
-                                            value / 60
-                                        );
-
-                                    const minutos =
-                                        value % 60;
-
-
-                                    return (
-                                        String(
-                                            horas
-                                        ).padStart(
-                                            2,
-                                            "0"
-                                        ) +
-                                        ":" +
-                                        String(
-                                            minutos
-                                        ).padStart(
-                                            2,
-                                            "0"
-                                        )
+                                    return convertirMinutosHHMM(
+                                        value
                                     );
                                 }
                         }
@@ -3351,46 +3223,68 @@ function crearGraficoDuracion() {
 
                 options: {
 
-                    responsive: true,
+                    responsive:
+                        true,
 
-                    maintainAspectRatio: false,
+                    maintainAspectRatio:
+                        false,
 
                     plugins: {
 
                         legend: {
-                            display: false
+                            display:
+                                false
                         }
                     },
 
                     layout: {
+
                         padding: {
-                            top: 25,
-                            bottom: 5,
-                            left: 10,
-                            right: 10
+
+                            top:
+                                25,
+
+                            bottom:
+                                5,
+
+                            left:
+                                10,
+
+                            right:
+                                10
                         }
                     },
 
                     scales: {
 
                         x: {
+
                             grid: {
-                                display: false
+                                display:
+                                    false
                             },
 
                             border: {
-                                display: false
+                                display:
+                                    false
                             },
 
                             ticks: {
+
                                 color:
                                     "#1e293b",
 
-                                padding: 8,
+                                padding:
+                                    8,
 
                                 font: {
-                                    size: 12,
-                                    weight: "600",
+
+                                    size:
+                                        12,
+
+                                    weight:
+                                        "600",
+
                                     family:
                                         "Segoe UI, sans-serif"
                                 }
@@ -3398,9 +3292,15 @@ function crearGraficoDuracion() {
                         },
 
                         y: {
-                            display: false,
-                            beginAtZero: true,
-                            grace: "20%"
+
+                            display:
+                                false,
+
+                            beginAtZero:
+                                true,
+
+                            grace:
+                                "20%"
                         }
                     }
                 }
@@ -3410,299 +3310,26 @@ function crearGraficoDuracion() {
 
 
 // ==========================================
-// MINI GRÁFICO EFECTIVIDAD
+// CONVERTIR MINUTOS A HH:MM
 // ==========================================
 
-function renderizarMiniGraficoEfectividad(
-    completadas,
-    noRealizadas
-) {
+function convertirMinutosHHMM(minutos) {
 
-    const canvas =
-        document.getElementById(
-            "miniEfectividadChart"
+    const minutosRedondeados =
+        Math.round(minutos);
+
+    const horas =
+        Math.floor(
+            minutosRedondeados / 60
         );
 
-    if (!canvas) return;
-
-
-    if (miniEfectividadChartInstance) {
-
-        miniEfectividadChartInstance.destroy();
-    }
-
-
-    const total =
-        completadas +
-        noRealizadas;
-
-
-    const data =
-        total > 0
-            ? [completadas, noRealizadas]
-            : [0, 1];
-
-
-    const colors =
-        total > 0
-            ? ["#10b981", "#ef4444"]
-            : ["#cbd5e1", "#e2e8f0"];
-
-
-    miniEfectividadChartInstance =
-        new Chart(
-            canvas.getContext("2d"),
-            {
-
-                type: "doughnut",
-
-                data: {
-
-                    labels: [
-                        "Completadas",
-                        "No Realizadas"
-                    ],
-
-                    datasets: [{
-
-                        data,
-
-                        backgroundColor:
-                            colors,
-
-                        borderWidth: 0
-                    }]
-                },
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio: false,
-
-                    cutout: "75%",
-
-                    plugins: {
-
-                        legend: {
-                            display: false
-                        },
-
-                        tooltip: {
-                            enabled:
-                                total > 0
-                        },
-
-                        datalabels: {
-                            display: false
-                        }
-                    }
-                }
-            }
-        );
-}
-
-
-// ==========================================
-// MINI DURACIÓN
-// ==========================================
-
-function renderizarMiniGraficoDuracion() {
-
-    const canvas =
-        document.getElementById(
-            "miniDuracionChart"
-        );
-
-    if (!canvas) return;
-
-
-    if (miniDuracionChartInstance) {
-
-        miniDuracionChartInstance.destroy();
-    }
-
-
-    const agrupar = {};
-
-
-    ordenMeses.forEach(mes => {
-
-        agrupar[mes] = {
-            sumaMinutos: 0,
-            conteo: 0
-        };
-    });
-
-
-    filteredData.forEach(item => {
-
-        const fecha =
-            obtenerFechaObjeto(item);
-
-        if (!fecha) return;
-
-
-        const mes =
-            ordenMeses[
-            fecha.getMonth()
-            ];
-
-
-        const estado =
-            String(
-                item.Estado ?? ""
-            )
-                .trim()
-                .toLowerCase();
-
-
-        if (estado !== "completado") {
-            return;
-        }
-
-
-        const inicio =
-            item.Inicio ??
-            item.Hora_Inicio;
-
-        const fin =
-            item.Fin ??
-            item.Hora_Fin;
-
-
-        const diferencia =
-            calcularDiferenciaMinutos(
-                inicio,
-                fin
-            );
-
-
-        if (
-            diferencia !== null &&
-            diferencia >= 0 &&
-            diferencia < 720
-        ) {
-
-            agrupar[mes].sumaMinutos +=
-                diferencia;
-
-            agrupar[mes].conteo++;
-        }
-    });
-
-
-    const data =
-        ordenMeses.map(mes => {
-
-            return agrupar[mes].conteo > 0
-                ? Math.round(
-                    agrupar[mes].sumaMinutos /
-                    agrupar[mes].conteo
-                )
-                : 0;
-        });
-
-
-    miniDuracionChartInstance =
-        new Chart(
-            canvas.getContext("2d"),
-            {
-
-                type: "line",
-
-                data: {
-
-                    labels: ordenMeses,
-
-                    datasets: [{
-
-                        data,
-
-                        borderColor:
-                            "#3b82f6",
-
-                        borderWidth: 2,
-
-                        pointRadius: 0,
-
-                        tension: 0.3,
-
-                        fill: false
-                    }]
-                },
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio: false,
-
-                    plugins: {
-
-                        legend: {
-                            display: false
-                        },
-
-                        tooltip: {
-                            enabled: false
-                        },
-
-                        datalabels: {
-                            display: false
-                        }
-                    },
-
-                    scales: {
-
-                        x: {
-                            display: false
-                        },
-
-                        y: {
-                            display: false
-                        }
-                    }
-                }
-            }
-        );
-}
-
-
-// ==========================================
-// EXPORTAR EXCEL
-// ==========================================
-
-function descargarExcel() {
-
-    if (
-        !filteredData ||
-        filteredData.length === 0
-    ) {
-        return;
-    }
-
-
-    const ws =
-        XLSX.utils.json_to_sheet(
-            filteredData
-        );
-
-
-    const wb =
-        XLSX.utils.book_new();
-
-
-    XLSX.utils.book_append_sheet(
-        wb,
-        ws,
-        "Datos_Filtrados"
-    );
-
-
-    XLSX.writeFile(
-        wb,
-        "Reporte_Actividades_Filtrado.xlsx"
+    const minutosRestantes =
+        minutosRedondeados % 60;
+
+    return (
+        String(horas).padStart(2, "0") +
+        ":" +
+        String(minutosRestantes).padStart(2, "0")
     );
 }
 
@@ -3813,8 +3440,6 @@ function actualizarVistaHoy() {
     // Primero respetamos los filtros
     const datosFiltrados = filteredData;
     console.log("🔴 KPI - obtenerDatosFiltrados:", datosFiltrados.length);
-    console.log("🔴 KPI - rawData:", rawData.length);
-    console.log("🔴 KPI - filteredData:", filteredData.length);
 
     // Obtener datos desde hoy hacia atrás
     datosVistaHoy = obtenerDatosUltimosDias(datosFiltrados, 7);
@@ -3924,11 +3549,6 @@ function obtenerDatosFiltrados() {
         );
     });
 
-    console.log("Resultado obtenerDatosFiltrados:", {
-        raw: rawData.length,
-        resultado: resultado.length,
-        excluidos: rawData.length - resultado.length
-    });
 
     return resultado;
 }

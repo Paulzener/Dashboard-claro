@@ -50,9 +50,7 @@ app.get('/api/actividades', async (req, res) => {
         const result = await pool.request().query(`
             SELECT
                 R.[Origen],
-                R.[Origen] AS [Fecha],
                 R.[pasos],
-                R.[Tecnico] AS [TecnicoOriginal],
                 T.[TecnicoLimpio] AS [Tecnico],
                 R.[Orden_de_Trabajo],
                 R.[Tipo_de_Actividad],

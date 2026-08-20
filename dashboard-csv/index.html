@@ -239,11 +239,11 @@
 
         <!-- VISTA 1: HOY -->
         <div id="viewHoy" class="tab-view hidden" style="padding-top: 2rem;">
-
+            <h1>Indicadores Diarios</h1>
             <div class="grid-graficos-diarios">
 
                 <div class="card-grafico">
-                    <h2>EFECTIVIDAD DIARIA</h2>
+                    <h2>EFECTIVIDAD %</h2>
                     <p>Últimos 7 días</p>
 
                     <div class="chart-wrapper">
@@ -252,7 +252,7 @@
                 </div>
 
                 <div class="card-grafico">
-                    <h2>PROMEDIO RGU DIARIO</h2>
+                    <h2>PROMEDIO RGU</h2>
                     <p>Últimos 7 días</p>
 
                     <div class="chart-wrapper">
@@ -261,7 +261,7 @@
                 </div>
 
                 <div class="card-grafico">
-                    <h2>DURACIÓN PROMEDIO DIARIA</h2>
+                    <h2>DURACIÓN PROMEDIO</h2>
                     <p>Últimos 7 días</p>
 
                     <div class="chart-wrapper">
@@ -275,13 +275,14 @@
 
         <!-- VISTA 2: HISTÓRICO (Mueve aquí tus gráficos actuales) -->
         <div id="viewHistorico" class="tab-view hidden" style="padding-top: 2rem;">
+            <h1>Indicadores Históricos (Mes)</h1>
             <!-- CONTENEDOR CAPTURABLE (KPIs + GRÁFICOS CON TÍTULOS) -->
             <div id="dashboardCapture" >
 
                 <!-- GRÁFICOS -->
                 <div class="charts">
                     <div class="chart-container">
-                        <h2>PRODUCCIÓN GENERAL MENSUAL</h2>
+                        <h2>PRODUCCIÓN GENERAL</h2>
                         <p>Completado / No realizada</p>
                         <div class="chart-wrapper">
                             <canvas id="estadoChart"></canvas>
@@ -289,7 +290,7 @@
                     </div>
 
                     <div class="chart-container">
-                        <h2>PROMEDIO GENERAL HISTÓRICO</h2>
+                        <h2>PROMEDIO GENERAL RGU</h2>
                         <p>RGU</p>
                         <div class="chart-wrapper">
                             <canvas id="actividadChart"></canvas>
@@ -297,7 +298,7 @@
                     </div>
 
                     <div class="chart-container">
-                        <h2>DURACIÓN PROMEDIO POR MES</h2>
+                        <h2>DURACIÓN PROMEDIO </h2>
                         <p>Minutos</p>
                         <div class="chart-wrapper">
                             <canvas id="duracionChart"></canvas>
@@ -311,8 +312,9 @@
         <!-- VISTA 3: DETALLES (Mueve aquí tu tabla actual) -->
         <div id="viewDetalles" class="tab-view hidden" style="padding-top: 2.5rem;">
             <!-- TABLA -->
+             <h1>Detalle de actividades</h1>
             <section id="tableSection" class="table-section hidden">
-                <h2>Detalle de actividades</h2>
+                
                 <div class="table-wrapper">
                     <table class="table">
                         <thead>
