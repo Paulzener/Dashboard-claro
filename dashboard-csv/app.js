@@ -1377,7 +1377,7 @@ function renderizarTabla() {
     tbody.innerHTML = "";
 
 
-    const limiteData = filteredData.slice(0, 100);
+    const limiteData = filteredData; // MUESTRA TODOS LOS DATOS DE LA TABLA.
 
 
     limiteData.forEach(item => {
