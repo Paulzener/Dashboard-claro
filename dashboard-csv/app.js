@@ -1,3 +1,6 @@
+
+// 1192 - KPIS HISTORICO
+// 1672 - GRÁFICO PROMEDIO GENERAL HISTORICO (RGU)
 // ==========================================
 // VARIABLES GLOBALES Y CONFIGURACIÓN
 // ==========================================
@@ -916,15 +919,6 @@ function poblarFiltros(data) {
     );
 }
 
-
-// ==========================================
-// APLICAR FILTROS
-// ==========================================
-
-// ==========================================
-// APLICAR FILTROS (CORREGIDO COMPLETO)
-// ==========================================
-
 // ==========================================
 // APLICAR FILTROS (COMPLETO)
 // ==========================================
@@ -1224,8 +1218,8 @@ function actualizarKPIs() {
             duracionConteo++;
         }
 
-        // Agrupación RGU por Técnico y Día
-        if (estado === "completado") {
+        // KPI - Agrupación RGU por Técnico y Día 
+        if (estado === "completado" || estado === "no realizada") {
             const fecha = obtenerFechaObjeto(item);
             const tecnico = String(item.Tecnico ?? "").trim();
 
@@ -1340,33 +1334,16 @@ function formatearHoraRedondeada(valor) {
     }
 
 
-    const partes =
-        String(valor)
-            .trim()
-            .split(":");
+    const partes = String(valor).trim().split(":");
 
 
     if (partes.length >= 2) {
 
-        let h =
-            parseInt(
-                partes[0].slice(-2),
-                10
-            );
+        let h = parseInt(partes[0].slice(-2), 10);
 
-        let m =
-            parseInt(
-                partes[1],
-                10
-            );
+        let m = parseInt(partes[1], 10);
 
-        const s =
-            partes[2]
-                ? parseInt(
-                    partes[2],
-                    10
-                )
-                : 0;
+        const s = partes[2] ? parseInt(partes[2], 10) : 0;
 
 
         if (s >= 30) {
@@ -1378,20 +1355,15 @@ function formatearHoraRedondeada(valor) {
 
             m = 0;
 
-            h =
-                (h + 1) % 24;
+            h = (h + 1) % 24;
         }
 
 
-        if (
-            !isNaN(h) &&
-            !isNaN(m)
+        if (!isNaN(h) && !isNaN(m)
         ) {
 
             return (
-                String(h).padStart(2, "0") +
-                ":" +
-                String(m).padStart(2, "0")
+                String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0")
             );
         }
     }
@@ -1404,9 +1376,7 @@ function formatearHoraRedondeada(valor) {
 function renderizarTabla() {
 
     const tbody =
-        document.getElementById(
-            "dataTable"
-        );
+        document.getElementById("dataTable");
 
     if (!tbody) return;
 
@@ -1414,34 +1384,23 @@ function renderizarTabla() {
     tbody.innerHTML = "";
 
 
-    const limiteData =
-        filteredData.slice(0, 100);
+    const limiteData = filteredData.slice(0, 100);
 
 
     limiteData.forEach(item => {
 
         const tecnico =
-            String(
-                item.Tecnico ?? "-"
-            ).trim();
+            String(item.Tecnico ?? "-").trim();
 
-        const supervisor =
-            String(
-                item.Supervisor ?? "-"
-            ).trim();
+        const supervisor = String(item.Supervisor ?? "-").trim();
 
 
-        const inicio =
-            item.Inicio ??
-            item.Hora_Inicio;
+        const inicio = item.Inicio ?? item.Hora_Inicio;
 
-        const fin =
-            item.Fin ??
-            item.Hora_Fin;
+        const fin = item.Fin ?? item.Hora_Fin;
 
 
-        const tr =
-            document.createElement("tr");
+        const tr = document.createElement("tr");
 
 
         tr.innerHTML = `
@@ -1470,22 +1429,15 @@ function renderizarTabla() {
 
             <td>${escapeHTML(item.RGU ?? "0")}</td>
         `;
-
-
         tbody.appendChild(tr);
     });
 
-
-    const rowCount =
-        document.getElementById(
-            "rowCount"
-        );
+    const rowCount = document.getElementById("rowCount");
 
 
     if (rowCount) {
 
-        rowCount.innerText =
-            `Mostrando ${limiteData.length} de ${filteredData.length} registros`;
+        rowCount.innerText = `Mostrando ${limiteData.length} de ${filteredData.length} registros`;
     }
 }
 
@@ -1512,7 +1464,6 @@ function crearGraficoProduccion() {
 
     const agrupar = {};
 
-
     ordenMeses.forEach(mes => {
 
         agrupar[mes] = {
@@ -1521,7 +1472,6 @@ function crearGraficoProduccion() {
         };
     });
 
-
     filteredData.forEach(item => {
 
         const fecha =
@@ -1529,12 +1479,10 @@ function crearGraficoProduccion() {
 
         if (!fecha) return;
 
-
         const mes =
             ordenMeses[
             fecha.getMonth()
             ];
-
 
         const estado =
             String(
@@ -1722,189 +1670,1202 @@ function crearGraficoProduccion() {
         );
 }
 
-
 // ==========================================
-// RGU
+// GRÁFICO PROMEDIO GENERAL HISTÓRICO RGU
+//
+// REPLICA:
+//
+// 1. Limpieza de Técnico como SQL
+// 2. Promedio de SUM(RGU) por Origen
+// 3. Promedio de resultados por Técnico
+// 4. Filtro Estado:
+//      - Completado
+//      - No Realizada
 // ==========================================
 
 function crearGraficoRGU() {
+    const ordenMeses = [
+        "Ene",
+        "Feb",
+        "Mar",
+        "Abr",
+        "May",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dic"
+    ];
 
-    const agrupar = {};
+    let actividadChartInstance = null;
+    // ==========================================
+    // VALIDACIONES
+    // ==========================================
 
+    if (!Array.isArray(ordenMeses)) {
+        console.error(
+            "Error: ordenMeses no existe o no es un arreglo."
+        );
+        return;
+    }
 
+    if (!Array.isArray(filteredData)) {
+        console.error(
+            "Error: filteredData no existe o no es un arreglo."
+        );
+        return;
+    }
+
+    if (typeof Chart === "undefined") {
+        console.error(
+            "Error: Chart.js no está cargado."
+        );
+        return;
+    }
+
+    // ==========================================
+    // ESTRUCTURA DE AGRUPACIÓN
+    //
+    // agrupacion[mes][tecnico][origen] = {
+    //     suma: número,
+    //     cantidadValores: número
+    // }
+    // ==========================================
+
+    const agrupacion = {};
+    const aniosDetectados = [
+        ...new Set(
+            filteredData
+                .map(item => obtenerFechaOrigen(item))
+                .filter(fecha => fecha !== null)
+                .map(fecha => fecha.getFullYear())
+        )
+    ].sort();
+
+    console.log(
+        "Años encontrados en filteredData:",
+        aniosDetectados
+    );
     ordenMeses.forEach(mes => {
-
-        agrupar[mes] = {};
+        agrupacion[mes] = {};
     });
 
+    // ==========================================
+    // NORMALIZAR ESTADO
+    // ==========================================
+
+    function normalizarEstado(valor) {
+
+        return String(valor ?? "")
+            .trim()
+            .toLocaleLowerCase("es-CL")
+            .replace(/\s+/g, " ");
+    }
+
+    // ==========================================
+    // LIMPIAR TÉCNICO COMO EN EL SQL
+    //
+    // Orden:
+    //
+    // 1. Texto posterior a _ZENER_
+    // 2. Texto posterior a _ZENE_
+    // 3. Elimina ZENER_ al inicio
+    // 4. Elimina ZENE_ al inicio
+    // 5. Conserva el texto si no hay coincidencia
+    //
+    // Ejemplos:
+    //
+    // FS_MM_NFTT_ZENE_OSCAR VILLALOBOS M
+    // -> OSCAR VILLALOBOS M
+    //
+    // NFTT_ZENE_Juan Bolados
+    // -> Juan Bolados
+    //
+    // ZENE_Ricardo Vergara M
+    // -> Ricardo Vergara M
+    //
+    // FS_MM_ZENER_Juan Perez
+    // -> Juan Perez
+    // ==========================================
+
+    function obtenerTecnicoLimpio(item) {
+
+        if (
+            item.Tecnico === null ||
+            item.Tecnico === undefined
+        ) {
+            return null;
+        }
+
+        const tecnicoOriginal =
+            String(item.Tecnico).trim();
+
+        if (!tecnicoOriginal) {
+            return null;
+        }
+
+        const tecnicoMayuscula =
+            tecnicoOriginal.toLocaleUpperCase(
+                "es-CL"
+            );
+
+        let tecnicoLimpio =
+            tecnicoOriginal;
+
+        // --------------------------------------
+        // CASO 1: _ZENER_
+        // --------------------------------------
+
+        const posicionZenerInterno =
+            tecnicoMayuscula.indexOf(
+                "_ZENER_"
+            );
+
+        if (posicionZenerInterno !== -1) {
+
+            tecnicoLimpio =
+                tecnicoOriginal.slice(
+                    posicionZenerInterno +
+                    "_ZENER_".length
+                );
+
+        } else {
+
+            // ----------------------------------
+            // CASO 2: _ZENE_
+            // ----------------------------------
+
+            const posicionZeneInterno =
+                tecnicoMayuscula.indexOf(
+                    "_ZENE_"
+                );
+
+            if (posicionZeneInterno !== -1) {
+
+                tecnicoLimpio =
+                    tecnicoOriginal.slice(
+                        posicionZeneInterno +
+                        "_ZENE_".length
+                    );
+
+            } else if (
+                tecnicoMayuscula.startsWith(
+                    "ZENER_"
+                )
+            ) {
+
+                // ------------------------------
+                // CASO 3: ZENER_ AL INICIO
+                // ------------------------------
+
+                tecnicoLimpio =
+                    tecnicoOriginal.slice(
+                        "ZENER_".length
+                    );
+
+            } else if (
+                tecnicoMayuscula.startsWith(
+                    "ZENE_"
+                )
+            ) {
+
+                // ------------------------------
+                // CASO 4: ZENE_ AL INICIO
+                // ------------------------------
+
+                tecnicoLimpio =
+                    tecnicoOriginal.slice(
+                        "ZENE_".length
+                    );
+            }
+        }
+
+        // --------------------------------------
+        // EQUIVALENTE A TRIM DEL SQL
+        // --------------------------------------
+
+        tecnicoLimpio =
+            tecnicoLimpio
+                .trim()
+                .replace(/\s+/g, " ");
+
+        return tecnicoLimpio || null;
+    }
+
+    // ==========================================
+    // CREAR CLAVE NORMALIZADA DEL TÉCNICO
+    //
+    // Evita que:
+    //
+    // "Juan Bolados"
+    // "JUAN BOLADOS"
+    // "juan bolados"
+    //
+    // sean tratados como técnicos diferentes.
+    // ==========================================
+
+    function crearClaveTecnico(nombre) {
+
+        return String(nombre)
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLocaleUpperCase("es-CL")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    // ==========================================
+    // CONVERTIR RGU A NÚMERO
+    // ==========================================
+
+    function convertirRGU(valor) {
+
+        if (
+            valor === null ||
+            valor === undefined
+        ) {
+            return null;
+        }
+
+        if (
+            typeof valor === "string" &&
+            valor.trim() === ""
+        ) {
+            return null;
+        }
+
+        if (typeof valor === "number") {
+
+            return Number.isFinite(valor)
+                ? valor
+                : null;
+        }
+
+        let texto =
+            String(valor)
+                .trim()
+                .replace(/\s/g, "");
+
+        /*
+         * Formato chileno:
+         *
+         * 1.234,56 -> 1234.56
+         */
+        if (
+            texto.includes(".") &&
+            texto.includes(",")
+        ) {
+            texto = texto
+                .replace(/\./g, "")
+                .replace(",", ".");
+        } else if (texto.includes(",")) {
+
+            /*
+             * 3,25 -> 3.25
+             */
+            texto =
+                texto.replace(",", ".");
+        }
+
+        const numero =
+            Number(texto);
+
+        return Number.isFinite(numero)
+            ? numero
+            : null;
+    }
+
+    // ==========================================
+    // VALIDAR FECHA
+    // ==========================================
+
+    function crearFechaValidada(
+        anio,
+        mes,
+        dia
+    ) {
+
+        const fecha =
+            new Date(anio, mes, dia);
+
+        if (
+            fecha.getFullYear() !== anio ||
+            fecha.getMonth() !== mes ||
+            fecha.getDate() !== dia
+        ) {
+            return null;
+        }
+
+        return fecha;
+    }
+
+    // ==========================================
+    // CONVERTIR FECHA SIN PROBLEMAS UTC
+    // ==========================================
+
+    function convertirFechaLocal(valor) {
+
+        if (
+            valor === null ||
+            valor === undefined ||
+            String(valor).trim() === ""
+        ) {
+            return null;
+        }
+
+        // --------------------------------------
+        // YA ES UN OBJETO DATE
+        // --------------------------------------
+
+        if (valor instanceof Date) {
+
+            if (Number.isNaN(valor.getTime())) {
+                return null;
+            }
+
+            return crearFechaValidada(
+                valor.getFullYear(),
+                valor.getMonth(),
+                valor.getDate()
+            );
+        }
+
+        const texto =
+            String(valor).trim();
+
+        // --------------------------------------
+        // FORMATO YYYY-MM-DD
+        // FORMATO YYYY/MM/DD
+        // FORMATO YYYY-MM-DDTHH:mm:ss
+        // --------------------------------------
+
+        let coincidencia =
+            texto.match(
+                /^(\d{4})\d{1,2}\d{1,2}/
+            );
+
+        if (coincidencia) {
+
+            const anio =
+                Number(coincidencia[1]);
+
+            const mes =
+                Number(coincidencia[2]) - 1;
+
+            const dia =
+                Number(coincidencia[3]);
+
+            return crearFechaValidada(
+                anio,
+                mes,
+                dia
+            );
+        }
+
+        // --------------------------------------
+        // FORMATOS:
+        //
+        // DD/MM/YYYY
+        // DD-MM-YYYY
+        // DD.MM.YYYY
+        // --------------------------------------
+
+        coincidencia =
+            texto.match(
+                /^(\d{1,2})\d{1,2}\d{4}/
+            );
+
+        if (coincidencia) {
+
+            const dia =
+                Number(coincidencia[1]);
+
+            const mes =
+                Number(coincidencia[2]) - 1;
+
+            const anio =
+                Number(coincidencia[3]);
+
+            return crearFechaValidada(
+                anio,
+                mes,
+                dia
+            );
+        }
+
+        // --------------------------------------
+        // TIMESTAMP NUMÉRICO
+        // --------------------------------------
+
+        if (/^\d+$/.test(texto)) {
+
+            let numero =
+                Number(texto);
+
+            /*
+             * Timestamp Unix en segundos.
+             */
+            if (texto.length === 10) {
+                numero *= 1000;
+            }
+
+            const fechaTimestamp =
+                new Date(numero);
+
+            if (
+                Number.isNaN(
+                    fechaTimestamp.getTime()
+                )
+            ) {
+                return null;
+            }
+
+            return crearFechaValidada(
+                fechaTimestamp.getFullYear(),
+                fechaTimestamp.getMonth(),
+                fechaTimestamp.getDate()
+            );
+        }
+
+        // --------------------------------------
+        // ÚLTIMO INTENTO
+        // --------------------------------------
+
+        const fecha =
+            new Date(texto);
+
+        if (Number.isNaN(fecha.getTime())) {
+            return null;
+        }
+
+        return crearFechaValidada(
+            fecha.getFullYear(),
+            fecha.getMonth(),
+            fecha.getDate()
+        );
+    }
+
+    // ==========================================
+    // OBTENER FECHA DE ORIGEN
+    //
+    // Se prioriza item.Origen.
+    // Si no existe, se usa obtenerFechaObjeto().
+    // ==========================================
+
+    function obtenerFechaOrigen(item) {
+
+        const fechaDesdeOrigen =
+            convertirFechaLocal(item.Origen);
+
+        if (fechaDesdeOrigen) {
+            return fechaDesdeOrigen;
+        }
+
+        if (
+            typeof obtenerFechaObjeto ===
+            "function"
+        ) {
+            const fechaRespaldo =
+                obtenerFechaObjeto(item);
+
+            if (
+                fechaRespaldo instanceof Date &&
+                !Number.isNaN(
+                    fechaRespaldo.getTime()
+                )
+            ) {
+                return crearFechaValidada(
+                    fechaRespaldo.getFullYear(),
+                    fechaRespaldo.getMonth(),
+                    fechaRespaldo.getDate()
+                );
+            }
+        }
+
+        return null;
+    }
+
+    // ==========================================
+    // CREAR CLAVE DE ORIGEN YYYY-MM-DD
+    // ==========================================
+
+    function crearClaveOrigen(fecha) {
+
+        return [
+            fecha.getFullYear(),
+
+            String(
+                fecha.getMonth() + 1
+            ).padStart(2, "0"),
+
+            String(
+                fecha.getDate()
+            ).padStart(2, "0")
+        ].join("-");
+    }
+
+    // ==========================================
+    // DIAGNÓSTICO
+    // ==========================================
+
+    const diagnostico = {
+        registrosTotales:
+            filteredData.length,
+
+        estadoExcluido:
+            0,
+
+        sinTecnico:
+            0,
+
+        sinOrigen:
+            0,
+
+        sinRGU:
+            0,
+
+        incluidos:
+            0
+    };
+
+    const transformacionesTecnicos =
+        new Map();
+
+    // ==========================================
+    // RECORRER DATOS
+    // ==========================================
 
     filteredData.forEach(item => {
 
-        const fecha =
-            obtenerFechaObjeto(item);
-
-        if (!fecha) return;
-
+        // --------------------------------------
+        // FILTRAR ESTADO
+        // --------------------------------------
 
         const estado =
-            String(
-                item.Estado ?? ""
-            )
-                .trim()
-                .toLowerCase();
+            normalizarEstado(item.Estado);
 
-
-        if (estado !== "completado") {
+        if (
+            estado !== "completado" &&
+            estado !== "no realizada"
+        ) {
+            diagnostico.estadoExcluido++;
             return;
         }
 
+        // --------------------------------------
+        // OBTENER NOMBRE LIMPIO
+        // --------------------------------------
 
-        const mes =
-            ordenMeses[
-            fecha.getMonth()
-            ];
+        const tecnicoLimpio =
+            obtenerTecnicoLimpio(item);
 
+        if (!tecnicoLimpio) {
+            diagnostico.sinTecnico++;
+            return;
+        }
 
-        const tecnico =
+        /*
+         * Se utiliza una clave normalizada para
+         * evitar diferencias por mayúsculas,
+         * minúsculas o tildes.
+         */
+        const claveTecnico =
+            crearClaveTecnico(
+                tecnicoLimpio
+            );
+
+        if (!claveTecnico) {
+            diagnostico.sinTecnico++;
+            return;
+        }
+
+        const tecnicoOriginal =
             String(
                 item.Tecnico ?? ""
             ).trim();
 
+        if (
+            tecnicoOriginal &&
+            tecnicoOriginal !== tecnicoLimpio
+        ) {
+            const claveTransformacion =
+                `${tecnicoOriginal}|||${tecnicoLimpio}`;
 
-        if (!tecnico) return;
+            transformacionesTecnicos.set(
+                claveTransformacion,
+                {
+                    Original:
+                        tecnicoOriginal,
 
-
-        const diaKey =
-            `${fecha.getFullYear()}-` +
-            `${String(
-                fecha.getMonth() + 1
-            ).padStart(2, "0")}-` +
-            `${String(
-                fecha.getDate()
-            ).padStart(2, "0")}`;
-
-
-        let rgu =
-            item.RGU ?? 0;
-
-
-        if (typeof rgu === "string") {
-
-            rgu =
-                rgu
-                    .replace(",", ".")
-                    .trim();
+                    NombreLimpio:
+                        tecnicoLimpio
+                }
+            );
         }
 
+        // --------------------------------------
+        // OBTENER ORIGEN
+        // --------------------------------------
 
-        const rguNum =
-            Number(rgu) || 0;
+        const fechaOrigen =
+            obtenerFechaOrigen(item);
 
-
-        if (!agrupar[mes][tecnico]) {
-
-            agrupar[mes][tecnico] = {};
+        if (!fechaOrigen) {
+            diagnostico.sinOrigen++;
+            return;
         }
 
+        // --------------------------------------
+        // MES DESDE ORIGEN
+        // --------------------------------------
+
+        const indiceMes =
+            fechaOrigen.getMonth();
+
+        const mes =
+            ordenMeses[indiceMes];
 
         if (
-            !agrupar[mes][tecnico][diaKey]
+            !mes ||
+            !Object.prototype.hasOwnProperty.call(
+                agrupacion,
+                mes
+            )
         ) {
-
-            agrupar[mes][tecnico][diaKey] = 0;
+            diagnostico.sinOrigen++;
+            return;
         }
 
+        // --------------------------------------
+        // CLAVE DEL ORIGEN
+        // --------------------------------------
 
-        agrupar[mes][tecnico][diaKey] +=
-            rguNum;
+        const origen =
+            crearClaveOrigen(
+                fechaOrigen
+            );
+
+        // --------------------------------------
+        // CONVERTIR RGU
+        // --------------------------------------
+
+        const rgu =
+            convertirRGU(item.RGU);
+
+        // --------------------------------------
+        // CREAR TÉCNICO
+        // --------------------------------------
+
+        if (!agrupacion[mes][claveTecnico]) {
+
+            agrupacion[mes][claveTecnico] = {
+                nombre:
+                    tecnicoLimpio,
+
+                origenes:
+                    {}
+            };
+        }
+
+        const tecnicoMes =
+            agrupacion[mes][claveTecnico];
+
+        // --------------------------------------
+        // CREAR ORIGEN
+        // --------------------------------------
+
+        if (
+            !tecnicoMes.origenes[origen]
+        ) {
+            tecnicoMes.origenes[origen] = {
+                suma: 0,
+                cantidadValores: 0
+            };
+        }
+
+        // --------------------------------------
+        // RGU VACÍO
+        // --------------------------------------
+
+        if (rgu === null) {
+            diagnostico.sinRGU++;
+            return;
+        }
+
+        // --------------------------------------
+        // CALCULATE(SUM(RGU))
+        // --------------------------------------
+
+        tecnicoMes.origenes[origen].suma +=
+            rgu;
+
+        tecnicoMes.origenes[origen]
+            .cantidadValores++;
+
+        diagnostico.incluidos++;
     });
 
+    // ==========================================
+    // CANTIDAD DE TÉCNICOS ÚNICOS POR MES
+    // ==========================================
+
+    const cantidadTecnicosPorMes =
+        ordenMeses.map(mes => {
+
+            const gruposTecnicos =
+                Object.values(
+                    agrupacion[mes] ?? {}
+                );
+
+            const nombres =
+                gruposTecnicos
+                    .map(grupo => {
+                        return grupo.nombre;
+                    })
+                    .sort((a, b) => {
+                        return a.localeCompare(
+                            b,
+                            "es-CL",
+                            {
+                                sensitivity:
+                                    "base"
+                            }
+                        );
+                    });
+
+            return {
+                Mes:
+                    mes,
+
+                TotalTecnicosUnicos:
+                    nombres.length,
+
+                Tecnicos:
+                    nombres.join(", ")
+            };
+        });
+
+    console.group(
+        "CANTIDAD DE TÉCNICOS ÚNICOS POR MES"
+    );
+
+    console.table(
+        cantidadTecnicosPorMes
+    );
+
+    console.groupEnd();
+
+    // ==========================================
+    // MOSTRAR TÉCNICOS POR MES EN GRUPOS
+    // ==========================================
+
+    console.group(
+        "DETALLE DE TÉCNICOS POR MES"
+    );
+
+    cantidadTecnicosPorMes.forEach(item => {
+
+        console.group(
+            `${item.Mes}: ${item.TotalTecnicosUnicos} técnicos`
+        );
+
+        const nombres =
+            item.Tecnicos
+                ? item.Tecnicos.split(", ")
+                : [];
+
+        console.table(
+            nombres.map((nombre, indice) => ({
+                Numero:
+                    indice + 1,
+
+                Tecnico:
+                    nombre
+            }))
+        );
+
+        console.groupEnd();
+    });
+
+    console.groupEnd();
+
+    // ==========================================
+    // CALCULAR PROMEDIOS
+    // ==========================================
+
+    const detalleCalculo = {};
+
+    const promediosSinRedondear = [];
 
     const promedios =
         ordenMeses.map(mes => {
 
+            detalleCalculo[mes] = [];
+
+            const agrupacionMes =
+                agrupacion[mes] ?? {};
+
             const tecnicos =
-                Object.keys(
-                    agrupar[mes]
+                Object.values(
+                    agrupacionMes
                 );
 
+            const promediosTecnicos = [];
 
-            if (!tecnicos.length) {
+            // ==================================
+            // PROMEDIO POR CADA TÉCNICO
+            // ==================================
+
+            tecnicos.forEach(grupoTecnico => {
+
+                const tecnico =
+                    grupoTecnico.nombre;
+
+                const origenesTecnico =
+                    grupoTecnico.origenes;
+
+                const origenes =
+                    Object.keys(
+                        origenesTecnico
+                    );
+
+                if (!origenes.length) {
+                    return;
+                }
+
+                const sumasPorOrigen = [];
+
+                origenes.forEach(origen => {
+
+                    const grupoOrigen =
+                        origenesTecnico[origen];
+
+                    /*
+                     * Si el origen sólo contiene
+                     * valores vacíos, se excluye.
+                     */
+                    if (
+                        grupoOrigen
+                            .cantidadValores > 0
+                    ) {
+                        sumasPorOrigen.push(
+                            grupoOrigen.suma
+                        );
+                    }
+                });
+
+                if (!sumasPorOrigen.length) {
+                    return;
+                }
+
+                // ==============================
+                // PROMEDIO RGU POR ORIGEN
+                //
+                // AVERAGEX(
+                //     VALUES(Origen),
+                //     SUM(RGU)
+                // )
+                // ==============================
+
+                const sumaRGUTecnico =
+                    sumasPorOrigen.reduce(
+                        (acumulado, valor) => {
+                            return acumulado + valor;
+                        },
+                        0
+                    );
+
+                const promedioTecnico =
+                    sumaRGUTecnico /
+                    sumasPorOrigen.length;
+
+                if (
+                    !Number.isFinite(
+                        promedioTecnico
+                    )
+                ) {
+                    return;
+                }
+
+                /*
+                 * No se redondea todavía.
+                 */
+                promediosTecnicos.push(
+                    promedioTecnico
+                );
+
+                detalleCalculo[mes].push({
+                    tecnico,
+                    cantidadOrigenes:
+                        sumasPorOrigen.length,
+                    sumaRGU:
+                        sumaRGUTecnico,
+                    promedioTecnico
+                });
+            });
+
+            // ==================================
+            // MES SIN RESULTADOS
+            // ==================================
+
+            if (!promediosTecnicos.length) {
+                promediosSinRedondear.push(
+                    null
+                );
                 return null;
             }
 
+            // ==================================
+            // PROMEDIO GENERAL DEL MES
+            //
+            // Promedio de promedios técnicos
+            // ==================================
 
-            let suma =
-                0;
+            const sumaPromediosTecnicos =
+                promediosTecnicos.reduce(
+                    (acumulado, valor) => {
+                        return acumulado + valor;
+                    },
+                    0
+                );
 
+            const promedioGeneral =
+                sumaPromediosTecnicos /
+                promediosTecnicos.length;
 
-            tecnicos.forEach(tecnico => {
-
-                const dias =
-                    Object.keys(
-                        agrupar[mes][tecnico]
-                    );
-
-
-                let total =
-                    0;
-
-
-                dias.forEach(dia => {
-
-                    total +=
-                        agrupar[mes][tecnico][dia];
-                });
-
-
-                if (dias.length > 0) {
-
-                    suma +=
-                        total /
-                        dias.length;
-                }
-            });
-
+            promediosSinRedondear.push(
+                promedioGeneral
+            );
 
             return Number(
-                (
-                    suma /
-                    tecnicos.length
-                ).toFixed(1)
+                promedioGeneral
             );
         });
 
+    // ==========================================
+    // DIAGNÓSTICO GENERAL
+    // ==========================================
+
+    console.group(
+        "DIAGNÓSTICO RGU"
+    );
+
+    console.log(
+        "Resumen de registros:",
+        diagnostico
+    );
+
+    console.log(
+        "Agrupación completa:",
+        agrupacion
+    );
+
+    if (
+        transformacionesTecnicos.size > 0
+    ) {
+        console.log(
+            "Transformaciones de nombres:"
+        );
+
+        console.table(
+            Array.from(
+                transformacionesTecnicos.values()
+            )
+        );
+    }
+
+    // ==========================================
+    // DETALLE DE PROMEDIOS POR MES
+    // ==========================================
+
+    ordenMeses.forEach(
+        (mes, indice) => {
+
+            const valorMes =
+                promedios[indice];
+
+            console.group(
+                `${mes}: ${valorMes === null
+                    ? "Sin datos"
+                    : valorMes
+                }`
+            );
+
+            console.table(
+                detalleCalculo[mes].map(
+                    item => ({
+                        Tecnico:
+                            item.tecnico,
+
+                        Origenes:
+                            item.cantidadOrigenes,
+
+                        SumaRGU:
+                            Number(
+                                item.sumaRGU
+                                    .toFixed(6)
+                            ),
+
+                        PromedioTecnico:
+                            Number(
+                                item
+                                    .promedioTecnico
+                                    .toFixed(6)
+                            )
+                    })
+                )
+            );
+
+            console.log(
+                "Promedio sin redondear:",
+                promediosSinRedondear[
+                indice
+                ]
+            );
+
+            console.log(
+                "Promedio mostrado:",
+                promedios[indice]
+            );
+
+            console.groupEnd();
+        }
+    );
+
+    console.log(
+        "Promedios finales:",
+        promedios
+    );
+
+    console.groupEnd();
+
+    // ==========================================
+    // VALORES ESPERADOS DE POWER BI
+    // ==========================================
+
+    const valoresPowerBI = [
+        3.02, // Ene
+        3.30, // Feb
+        3.09, // Mar
+        3.05, // Abr
+        3.20, // May
+        3.38, // Jun
+        3.15, // Jul
+        3.42, // Ago
+        null, // Sep
+        null, // Oct
+        null, // Nov
+        null  // Dic
+    ];
+
+    // ==========================================
+    // COMPARACIÓN CON POWER BI
+    // ==========================================
+
+    console.group(
+        "COMPARACIÓN JAVASCRIPT VS POWER BI"
+    );
+
+    console.table(
+        ordenMeses.map((mes, indice) => {
+            const valorJavaScript =
+                promedios[indice];
+
+            const valorPowerBI =
+                valoresPowerBI[indice] !== undefined
+                    ? valoresPowerBI[indice]
+                    : null;
+
+            /*
+             * Usar exactamente la misma agrupación
+             * empleada para calcular los promedios.
+             */
+            const cantidadTecnicos =
+                Object.keys(
+                    agrupacion[mes] ?? {}
+                ).length;
+
+            let diferencia = null;
+
+            if (
+                valorJavaScript !== null &&
+                valorPowerBI !== null
+            ) {
+                diferencia = Number(
+                    (
+                        valorJavaScript -
+                        valorPowerBI
+                    ).toFixed(4)
+                );
+            }
+
+            return {
+                Mes: mes,
+                JavaScript: valorJavaScript,
+                "Power BI": valorPowerBI,
+                Diferencia: diferencia,
+                "Cantidad Técnicos": cantidadTecnicos
+            };
+        })
+    );
+
+
+    console.groupEnd();
+
+    // ==========================================
+    // META
+    // ==========================================
 
     const meta =
         ordenMeses.map(() => 3);
 
+    // ==========================================
+    // OBTENER CANVAS
+    // ==========================================
 
     const canvas =
         document.getElementById(
             "actividadChart"
         );
 
-    if (!canvas) return;
-
-
-    if (actividadChartInstance) {
-
-        actividadChartInstance.destroy();
+    if (!canvas) {
+        console.warn(
+            "No se encontró el canvas #actividadChart."
+        );
+        return;
     }
 
+    // ==========================================
+    // DESTRUIR GRÁFICO ANTERIOR
+    // ==========================================
+
+    if (actividadChartInstance) {
+        actividadChartInstance.destroy();
+        actividadChartInstance = null;
+    }
+
+    // ==========================================
+    // CREAR GRÁFICO
+    // ==========================================
 
     actividadChartInstance =
         new Chart(
             canvas.getContext("2d"),
             {
-
-                type: "line",
+                type:
+                    "line",
 
                 data: {
-
-                    labels: ordenMeses,
+                    labels:
+                        ordenMeses,
 
                     datasets: [
+
+                        // ==========================
+                        // PROMEDIO GENERAL
+                        // ==========================
 
                         {
                             label:
@@ -1919,15 +2880,45 @@ function crearGraficoRGU() {
                             backgroundColor:
                                 "#172554",
 
-                            borderWidth: 2,
+                            borderWidth:
+                                2,
 
-                            tension: 0,
+                            tension:
+                                0,
 
-                            spanGaps: true,
+                            spanGaps:
+                                true,
 
-                            pointRadius: 3,
+                            pointRadius:
+                                3,
+
+                            pointHoverRadius:
+                                5,
+
+                            pointBackgroundColor:
+                                "#172554",
+
+                            pointBorderColor:
+                                "#172554",
 
                             datalabels: {
+
+                                display:
+                                    contexto => {
+
+                                        const valor =
+                                            contexto
+                                                .dataset
+                                                .data[
+                                            contexto
+                                                .dataIndex
+                                            ];
+
+                                        return (
+                                            valor !== null &&
+                                            valor !== undefined
+                                        );
+                                    },
 
                                 anchor:
                                     "start",
@@ -1935,35 +2926,52 @@ function crearGraficoRGU() {
                                 align:
                                     "top",
 
-                                offset: 4,
+                                offset:
+                                    4,
 
                                 color:
                                     "#172554",
 
                                 font: {
-                                    weight: "bold",
-                                    size: 11,
+                                    weight:
+                                        "bold",
+
+                                    size:
+                                        11,
+
                                     family:
                                         "Segoe UI, sans-serif"
                                 },
 
                                 formatter:
-                                    value =>
-                                        value !== null
-                                            ? value
-                                                .toString()
-                                                .replace(
-                                                    ".",
-                                                    ","
-                                                )
-                                            : ""
+                                    value => {
+
+                                        if (
+                                            value === null ||
+                                            value === undefined
+                                        ) {
+                                            return "";
+                                        }
+
+                                        return (
+                                            value
+                                                .toFixed(2)
+                                                .replace(".", ",")
+                                        );
+                                    }
                             }
                         },
 
-                        {
-                            label: "Meta",
+                        // ==========================
+                        // META
+                        // ==========================
 
-                            data: meta,
+                        {
+                            label:
+                                "Meta",
+
+                            data:
+                                meta,
 
                             borderColor:
                                 "#facc15",
@@ -1971,66 +2979,174 @@ function crearGraficoRGU() {
                             backgroundColor:
                                 "#facc15",
 
-                            borderWidth: 1.5,
+                            borderWidth:
+                                1.5,
 
-                            tension: 0,
+                            tension:
+                                0,
 
-                            pointRadius: 2.5,
+                            spanGaps:
+                                true,
+
+                            pointRadius:
+                                2.5,
+
+                            pointHoverRadius:
+                                4,
+
+                            pointBackgroundColor:
+                                "#facc15",
+
+                            pointBorderColor:
+                                "#facc15",
 
                             datalabels: {
-                                display: false
+                                display:
+                                    false
                             }
                         }
                     ]
                 },
 
                 options: {
+                    responsive:
+                        true,
 
-                    responsive: true,
+                    maintainAspectRatio:
+                        false,
 
-                    maintainAspectRatio: false,
+                    interaction: {
+                        mode:
+                            "index",
+
+                        intersect:
+                            false
+                    },
 
                     plugins: {
 
+                        // ==========================
+                        // LEYENDA
+                        // ==========================
+
                         legend: {
-                            display: false
+                            display:
+                                false
+                        },
+
+                        // ==========================
+                        // TOOLTIP
+                        // ==========================
+
+                        tooltip: {
+                            callbacks: {
+
+                                title:
+                                    elementos => {
+
+                                        if (
+                                            !elementos ||
+                                            !elementos.length
+                                        ) {
+                                            return "";
+                                        }
+
+                                        return elementos[0]
+                                            .label;
+                                    },
+
+                                label:
+                                    contexto => {
+
+                                        const etiqueta =
+                                            contexto
+                                                .dataset
+                                                .label ?? "";
+
+                                        const valor =
+                                            contexto.parsed.y;
+
+                                        if (
+                                            valor === null ||
+                                            valor === undefined
+                                        ) {
+                                            return (
+                                                `${etiqueta}: ` +
+                                                "sin datos"
+                                            );
+                                        }
+
+                                        return (
+                                            `${etiqueta}: ` +
+                                            Number(valor)
+                                                .toFixed(2)
+                                                .replace(
+                                                    ".",
+                                                    ","
+                                                )
+                                        );
+                                    }
+                            }
                         }
                     },
 
                     scales: {
 
+                        // ==========================
+                        // EJE X
+                        // ==========================
+
                         x: {
                             grid: {
-                                display: false
+                                display:
+                                    false
                             },
 
                             border: {
-                                display: false
+                                display:
+                                    false
                             },
 
                             ticks: {
-                                color: "#1e293b",
-                                padding: 8,
+                                color:
+                                    "#1e293b",
+
+                                padding:
+                                    8,
 
                                 font: {
-                                    size: 12,
-                                    weight: "600",
+                                    size:
+                                        12,
+
+                                    weight:
+                                        "600",
+
                                     family:
                                         "Segoe UI, sans-serif"
                                 }
                             }
                         },
 
+                        // ==========================
+                        // EJE Y
+                        // ==========================
+
                         y: {
-                            display: false,
-                            beginAtZero: true,
-                            grace: "20%"
+                            display:
+                                false,
+
+                            beginAtZero:
+                                true,
+
+                            grace:
+                                "20%"
                         }
                     }
                 }
             }
         );
 }
+
 
 
 // ==========================================
@@ -2599,7 +3715,7 @@ function cambiarVista(vista, btnElement) {
 
     vistaActual = vista;
     document.getElementById('kpis')
-    ?.classList.toggle('hidden', vista === 'detalles');
+        ?.classList.toggle('hidden', vista === 'detalles');
 
     // Cambiar botón activo
     document.querySelectorAll('.tab-btn').forEach(btn => {

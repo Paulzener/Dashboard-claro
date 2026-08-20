@@ -49,39 +49,74 @@ app.get('/api/actividades', async (req, res) => {
 
         const result = await pool.request().query(`
             SELECT
-                [Origen] AS [Fecha],
-                [pasos],
-                [Tecnico],
-                [Orden_de_Trabajo],
-                [Tipo_de_Actividad],
-                [Ciudad],
-                [Zona],
-                [Zona_de_trabajo],
-                [Inicio],
-                [Fin],
-                [Estado_de_la_actividad],
-                [Nro_Orden],
-                [Codigo_de_Cierre],
-                [Estado],
-                [Tipo_Red],
-                [Rut_o_Bucket],
-                [Nombre],
-                [Supervisor],
-                [Numero_Cliente],
-                [Cantidad_Extensores],
-                [Cantidad_Planes],
-                [Cantidad_DBox],
-                [RGU]
-            FROM dbo.ClaroVTR_RGU
+                R.[Origen],
+                R.[Origen] AS [Fecha],
+                R.[pasos],
+                R.[Tecnico] AS [TecnicoOriginal],
+                T.[TecnicoLimpio] AS [Tecnico],
+                R.[Orden_de_Trabajo],
+                R.[Tipo_de_Actividad],
+                R.[Ciudad],
+                R.[Zona],
+                R.[Zona_de_trabajo],
+                R.[Inicio],
+                R.[Fin],
+                R.[Estado_de_la_actividad],
+                R.[Nro_Orden],
+                R.[Codigo_de_Cierre],
+                R.[Estado],
+                R.[Tipo_Red],
+                R.[Rut_o_Bucket],
+                R.[Nombre],
+                R.[Supervisor],
+                R.[Numero_Cliente],
+                R.[Cantidad_Extensores],
+                R.[Cantidad_Planes],
+                R.[Cantidad_DBox],
+                R.[RGU]
+            FROM dbo.ClaroVTR_RGU AS R
+            CROSS APPLY (
+                SELECT
+                    NULLIF(
+                        LTRIM(
+                            RTRIM(
+                                CASE
+                                    WHEN CHARINDEX('_ZENER_', UPPER(R.[Tecnico])) > 0
+                                        THEN SUBSTRING(R.[Tecnico], CHARINDEX('_ZENER_', UPPER(R.[Tecnico])) + LEN('_ZENER_'), LEN(R.[Tecnico]))
+                                    WHEN CHARINDEX('_ZENE_', UPPER(R.[Tecnico])) > 0
+                                        THEN SUBSTRING(R.[Tecnico], CHARINDEX('_ZENE_', UPPER(R.[Tecnico])) + LEN('_ZENE_'), LEN(R.[Tecnico]))
+                                    WHEN UPPER(R.[Tecnico]) LIKE 'ZENER_%'
+                                        THEN STUFF(R.[Tecnico], 1, LEN('ZENER_'), '')
+                                    WHEN UPPER(R.[Tecnico]) LIKE 'ZENE_%'
+                                        THEN STUFF(R.[Tecnico], 1, LEN('ZENE_'), '')
+                                    ELSE R.[Tecnico]
+                                END
+                            )
+                        ),
+                        ''
+                    ) AS [TecnicoLimpio]
+            ) AS T
+            ORDER BY
+                R.[Origen],
+                T.[TecnicoLimpio];
         `);
 
-        res.json(result.recordset);
+        console.table(
+            result.recordset
+                .slice(0, 30)
+                .map(item => ({
+                    TecnicoOriginal: item.TecnicoOriginal,
+                    Tecnico: item.Tecnico
+                }))
+        );
+
+        // Se envía la respuesta una sola vez usando 'return'
+        return res.json(result.recordset);
 
     } catch (err) {
-
         console.error('❌ Error de SQL Server:', err);
 
-        res.status(500).json({
+        return res.status(500).json({
             error: "Error interno del servidor",
             detalle: err.message,
             sqlState: err.code
