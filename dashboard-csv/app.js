@@ -1366,60 +1366,48 @@ function formatearHoraRedondeada(valor) {
 }
 
 
-function renderizarTabla() {
+// Variable global para almacenar el límite actual (por defecto 50)
+let limiteRegistros = 50;
 
-    const tbody =
-        document.getElementById("dataTable");
+// Función que se activa cuando cambias la opción en el selector HTML
+function cambiarLimite(valor) {
+    limiteRegistros = valor === 'todos' ? 'todos' : parseInt(valor);
+    renderizarTabla();
+}
+
+function renderizarTabla() {
+    const tbody = document.getElementById("dataTable");
 
     if (!tbody) return;
 
-
     tbody.innerHTML = "";
 
-
-    const limiteData = filteredData; // MUESTRA TODOS LOS DATOS DE LA TABLA.
-
+    // APLICAR LÍMITE: Si es 'todos' muestra filteredData completo, de lo contrario recorta los primeros N registros
+    const limiteData = limiteRegistros === 'todos' 
+        ? filteredData 
+        : filteredData.slice(0, limiteRegistros);
 
     limiteData.forEach(item => {
-
-        const tecnico =
-            String(item.Tecnico ?? "-").trim();
-
+        const tecnico = String(item.Tecnico ?? "-").trim();
         const supervisor = String(item.Supervisor ?? "-").trim();
 
-
         const inicio = item.Inicio ?? item.Hora_Inicio;
-
         const fin = item.Fin ?? item.Hora_Fin;
-
 
         const tr = document.createElement("tr");
 
-
         tr.innerHTML = `
-
             <td>${escapeHTML(tecnico)}</td>
-
             <td>${escapeHTML(supervisor)}</td>
-
             <td>${escapeHTML(item.Rut_o_Bucket ?? "-")}</td>
-
             <td>${escapeHTML(item.Tipo_de_Actividad ?? "-")}</td>
-
             <td>${escapeHTML(item.Orden_de_Trabajo ?? "-")}</td>
-            
-            <td>${escapeHTML(item.Ciudad ?? "-")}</td>
-
+            <td>${escapeHTML(item.Zona ?? "-")}</td>
             <td>${escapeHTML(item.Zona_de_trabajo ?? "-")}</td>
-
             <td>${formatearHoraRedondeada(inicio)}</td>
-
             <td>${formatearHoraRedondeada(fin)}</td>
-
             <td>${escapeHTML(item.Estado ?? "-")}</td>
-
             <td>${formatearFecha(item)}</td>
-
             <td>${escapeHTML(item.RGU ?? "0")}</td>
         `;
         tbody.appendChild(tr);
@@ -1427,9 +1415,7 @@ function renderizarTabla() {
 
     const rowCount = document.getElementById("rowCount");
 
-
     if (rowCount) {
-
         rowCount.innerText = `Mostrando ${limiteData.length} de ${filteredData.length} registros`;
     }
 }
@@ -3390,14 +3376,32 @@ function cambiarVista(vista, btnElement) {
     // VISTA DETALLES
     // ==========================================
     else if (vista === 'detalles') {
+        const viewDetalles = document.getElementById('viewDetalles');
+        viewDetalles?.classList.remove('hidden');
 
-        document.getElementById('viewDetalles')?.classList.remove('hidden');
+        // 1. Seleccionar el tbody de la tabla
+        const tbody = document.querySelector('#viewDetalles table tbody'); // Ajusta el id/clase del tbody si es necesario
 
-        filteredData = obtenerDatosFiltrados();
+        if (tbody) {
+            // 2. Insertar la fila de carga dentro de la tabla
+            tbody.innerHTML = `
+            <tr>
+                <td colspan="11" style="text-align: center; padding: 20px;">
+                    Cargando datos...
+                </td>
+            </tr>
+        `;
+        }
 
-        renderizarTabla();
+        // 3. Procesar datos y renderizar (renderizarTabla reemplazará la fila de carga automáticamente)
+        setTimeout(() => {
+            filteredData = obtenerDatosFiltrados();
+            renderizarTabla();
+        }, 50);
     }
 }
+
+
 
 
 function obtenerDatosUltimosDias(data, cantidadDias = 7) {
