@@ -1383,8 +1383,8 @@ function renderizarTabla() {
     tbody.innerHTML = "";
 
     // APLICAR LÍMITE: Si es 'todos' muestra filteredData completo, de lo contrario recorta los primeros N registros
-    const limiteData = limiteRegistros === 'todos' 
-        ? filteredData 
+    const limiteData = limiteRegistros === 'todos'
+        ? filteredData
         : filteredData.slice(0, limiteRegistros);
 
     limiteData.forEach(item => {
@@ -3446,7 +3446,7 @@ function actualizarVistaHoy() {
     console.log("🔴 KPI - obtenerDatosFiltrados:", datosFiltrados.length);
 
     // Obtener datos desde hoy hacia atrás
-    datosVistaHoy = obtenerDatosUltimosDias(datosFiltrados, 7);
+    datosVistaHoy = obtenerDatosUltimosDias(datosFiltrados, 30);
 
     console.log("Datos últimos días:", datosVistaHoy);
 
@@ -3578,7 +3578,7 @@ function cargarGraficosHoy() {
 
     const dias = [];
 
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) {
 
         const fecha = new Date(hoy);
 
@@ -4081,7 +4081,7 @@ function crearGraficoHoyProduccion(data) {
 
     const hoy = new Date();
 
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) {
 
         const fecha = new Date(hoy);
 
@@ -4131,13 +4131,13 @@ function crearGraficoHoyProduccion(data) {
                 : null;
 
         const diasSemana = [
-            "Domingo",
-            "Lunes",
-            "Martes",
-            "Miércoles",
-            "Jueves",
-            "Viernes",
-            "Sábado"
+            "Dom",
+            "Lun",
+            "Mar",
+            "Mié",
+            "Jue",
+            "Vie",
+            "Sáb"
         ];
 
         labels.push([
@@ -4153,15 +4153,18 @@ function crearGraficoHoyProduccion(data) {
     const canvas =
         document.getElementById("chartHoy1");
 
+
     if (!canvas) return;
 
     if (chartHoy1Instance) {
         chartHoy1Instance.destroy();
     }
+    const diasMostrar = 30;
 
     chartHoy1Instance =
         new Chart(
             canvas.getContext("2d"),
+            
             {
                 type: "line",
 
@@ -4249,15 +4252,13 @@ function crearGraficoHoyProduccion(data) {
                             grid: {
                                 display: false
                             },
-
                             border: {
                                 display: false
                             },
-
                             ticks: {
+                                autoSkip: false,
                                 color: "#1e293b",
                                 padding: 8,
-
                                 font: {
                                     size: 12,
                                     weight: "600",
@@ -4274,7 +4275,9 @@ function crearGraficoHoyProduccion(data) {
                     }
                 }
             }
-        );
+        );setTimeout(() => {
+    moverScrollGraficosAlFinal();
+}, 100);
 }
 
 function crearGraficoHoyRGU(data) {
@@ -4284,7 +4287,7 @@ function crearGraficoHoyRGU(data) {
 
     const hoy = new Date();
 
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) {
 
         const fecha = new Date(hoy);
 
@@ -4369,13 +4372,13 @@ function crearGraficoHoyRGU(data) {
         }
 
         const diasSemana = [
-            "Domingo",
-            "Lunes",
-            "Martes",
-            "Miércoles",
-            "Jueves",
-            "Viernes",
-            "Sábado"
+            "Dom",
+            "Lun",
+            "Mar",
+            "Miér",
+            "Jue",
+            "Vie",
+            "Sáb"
         ];
 
         labels.push([
@@ -4391,11 +4394,13 @@ function crearGraficoHoyRGU(data) {
     const canvas =
         document.getElementById("chartHoy2");
 
+
     if (!canvas) return;
 
     if (chartHoy2Instance) {
         chartHoy2Instance.destroy();
     }
+    const diasMostrar = 30;
 
     chartHoy2Instance =
         new Chart(
@@ -4480,15 +4485,13 @@ function crearGraficoHoyRGU(data) {
                             grid: {
                                 display: false
                             },
-
                             border: {
                                 display: false
                             },
-
                             ticks: {
+                                autoSkip: false,
                                 color: "#1e293b",
                                 padding: 8,
-
                                 font: {
                                     size: 12,
                                     weight: "600",
@@ -4505,7 +4508,9 @@ function crearGraficoHoyRGU(data) {
                     }
                 }
             }
-        );
+        );setTimeout(() => {
+    moverScrollGraficosAlFinal();
+}, 100);
 }
 
 function crearGraficoHoyDuracion(data) {
@@ -4515,7 +4520,7 @@ function crearGraficoHoyDuracion(data) {
 
     const hoy = new Date();
 
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) {
 
         const fecha = new Date(hoy);
 
@@ -4588,13 +4593,13 @@ function crearGraficoHoyDuracion(data) {
                 : null;
 
         const diasSemana = [
-            "Domingo",
-            "Lunes",
-            "Martes",
-            "Miércoles",
-            "Jueves",
-            "Viernes",
-            "Sábado"
+            "Dom",
+            "Lun",
+            "Mar",
+            "Miér",
+            "Jue",
+            "Vie",
+            "Sáb"
         ];
 
         labels.push([
@@ -4613,6 +4618,7 @@ function crearGraficoHoyDuracion(data) {
     if (chartHoy3Instance) {
         chartHoy3Instance.destroy();
     }
+    const diasMostrar = 30;
 
     chartHoy3Instance =
         new Chart(
@@ -4717,14 +4723,13 @@ function crearGraficoHoyDuracion(data) {
                             grid: {
                                 display: false
                             },
-
                             border: {
                                 display: false
                             },
-
                             ticks: {
+                                autoSkip: false,
                                 color: "#1e293b",
-                                padding: 15,
+                                padding: 8,
 
                                 font: {
                                     size: 12,
@@ -4742,5 +4747,13 @@ function crearGraficoHoyDuracion(data) {
                     }
                 }
             }
-        );
+        );setTimeout(() => {
+    moverScrollGraficosAlFinal();
+}, 100);
+}
+
+function moverScrollGraficosAlFinal() {
+    document.querySelectorAll(".chart-scroll").forEach(scroll => {
+        scroll.scrollLeft = scroll.scrollWidth;
+    });
 }
