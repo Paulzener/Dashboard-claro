@@ -3354,6 +3354,20 @@ function cambiarVista(vista, btnElement) {
         actualizarVistaHoy();
 
     }
+    // ==========================================
+    // VISTA ALTAS (DIARIOS)
+    // ==========================================
+    else if (vista === 'altas') {
+        document.getElementById('viewAltas')?.classList.remove('hidden');
+
+        // Obtener la data filtrada o global de tu aplicación
+        const data = obtenerDatosFiltrados();
+
+        // Renderizar los 3 gráficos de Altas
+        crearGraficoHoyProduccionAltas(data);
+        crearGraficoHoyRGUAltas(data);
+        crearGraficoHoyDuracionAltas(data);
+    }
 
     // ==========================================
     // VISTA HISTÓRICO
@@ -4164,7 +4178,7 @@ function crearGraficoHoyProduccion(data) {
     chartHoy1Instance =
         new Chart(
             canvas.getContext("2d"),
-            
+
             {
                 type: "line",
 
@@ -4196,9 +4210,9 @@ function crearGraficoHoyProduccion(data) {
 
                         datalabels: {
 
-                            anchor:"top",
+                            anchor: "top",
 
-                            align:"end",
+                            align: "end",
 
                             offset: 6,
 
@@ -4264,9 +4278,9 @@ function crearGraficoHoyProduccion(data) {
                     }
                 }
             }
-        );setTimeout(() => {
-    moverScrollGraficosAlFinal();
-}, 100);
+        ); setTimeout(() => {
+            moverScrollGraficosAlFinal();
+        }, 100);
 }
 
 function crearGraficoHoyRGU(data) {
@@ -4497,9 +4511,9 @@ function crearGraficoHoyRGU(data) {
                     }
                 }
             }
-        );setTimeout(() => {
-    moverScrollGraficosAlFinal();
-}, 100);
+        ); setTimeout(() => {
+            moverScrollGraficosAlFinal();
+        }, 100);
 }
 
 function crearGraficoHoyDuracion(data) {
@@ -4643,7 +4657,7 @@ function crearGraficoHoyDuracion(data) {
 
                         datalabels: {
 
-                            anchor:"top",
+                            anchor: "top",
 
                             align: "end",
 
@@ -4728,13 +4742,627 @@ function crearGraficoHoyDuracion(data) {
                     }
                 }
             }
-        );setTimeout(() => {
-    moverScrollGraficosAlFinal();
-}, 100);
+        ); setTimeout(() => {
+            moverScrollGraficosAlFinal();
+        }, 100);
 }
 
 function moverScrollGraficosAlFinal() {
     document.querySelectorAll(".chart-scroll").forEach(scroll => {
         scroll.scrollLeft = scroll.scrollWidth;
     });
+}
+
+function crearGraficoHoyProduccionAltas(data) {
+
+    const labels = [];
+    const porcentajes = [];
+
+    const hoy = new Date();
+
+    for (let i = 29; i >= 0; i--) {
+
+        const fecha = new Date(hoy);
+
+        fecha.setDate(
+            fecha.getDate() - i
+        );
+
+        fecha.setHours(0, 0, 0, 0);
+
+        const key =
+            `${fecha.getFullYear()}-` +
+            `${String(fecha.getMonth() + 1).padStart(2, '0')}-` +
+            `${String(fecha.getDate()).padStart(2, '0')}`;
+
+        let c = 0;
+        let nr = 0;
+
+        data.forEach(item => {
+
+            const tipo =
+                (item.Tipo_de_Actividad || "")
+                    .toString()
+                    .trim()
+                    .toLowerCase();
+
+            if (
+                tipo !== "alta" &&
+                tipo !== "alta traslado" &&
+                tipo !== "migración" &&
+                tipo !== "migracion"
+            ) {
+                return;
+            }
+
+            const f =
+                obtenerFechaObjeto(item);
+
+            if (!f) return;
+
+            const itemKey =
+                `${f.getFullYear()}-` +
+                `${String(f.getMonth() + 1).padStart(2, '0')}-` +
+                `${String(f.getDate()).padStart(2, '0')}`;
+
+            if (itemKey !== key) return;
+
+            const estado =
+                (item.Estado || "")
+                    .toString()
+                    .trim()
+                    .toLowerCase();
+
+            if (estado === "completado") {
+                c++;
+            }
+
+            if (estado === "no realizada") {
+                nr++;
+            }
+
+        });
+
+        const total = c + nr;
+
+        const porcentaje =
+            total > 0
+                ? Number(
+                    ((c / total) * 100).toFixed(1)
+                )
+                : 0;
+
+        const diasSemana = [
+            "Dom",
+            "Lun",
+            "Mar",
+            "Mié",
+            "Jue",
+            "Vie",
+            "Sáb"
+        ];
+
+        labels.push([
+            diasSemana[fecha.getDay()],
+            `${String(fecha.getDate()).padStart(2, '0')}/` +
+            `${String(fecha.getMonth() + 1).padStart(2, '0')}`
+        ]);
+
+        porcentajes.push(porcentaje);
+    }
+
+
+    const canvas =
+        document.getElementById(
+            "chartHoyAltas1"
+        );
+
+    if (!canvas) return;
+
+
+    if (window.chartHoyAltas1Instance) {
+
+        window.chartHoyAltas1Instance.destroy();
+
+    }
+
+
+    window.chartHoyAltas1Instance =
+        new Chart(
+            canvas.getContext("2d"),
+            {
+
+                type: "line",
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [{
+
+                        label: "% Efectividad",
+
+                        data: porcentajes,
+
+                        borderColor: "#1d2a57",
+
+                        backgroundColor: "#1d2a57",
+
+                        borderWidth: 2.5,
+
+                        tension: 0.2,
+
+                        spanGaps: true,
+
+                        pointRadius: 4,
+
+                        pointBackgroundColor:
+                            "#1d2a57",
+
+                        pointBorderColor:
+                            "#1d2a57",
+
+                        datalabels: {
+
+                            anchor:
+                                context =>
+                                    context.dataIndex % 2 === 0
+                                        ? "top"
+                                        : "bottom",
+
+                            align:
+                                context =>
+                                    context.dataIndex % 2 === 0
+                                        ? "end"
+                                        : "start",
+
+                            offset: 6,
+
+                            color:
+                                "#1d2a57",
+
+                            font: {
+
+                                size: 11,
+
+                                weight: "bold",
+
+                                family:
+                                    "Segoe UI, sans-serif"
+                            },
+
+                            formatter:
+                                value => value + "%"
+                        }
+                    }]
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    plugins: {
+
+                        legend: {
+
+                            display: false
+
+                        }
+
+                    },
+
+                    layout: {
+
+                        padding: {
+
+                            top: 25,
+
+                            bottom: 5,
+
+                            left: 10,
+
+                            right: 10
+
+                        }
+
+                    },
+
+                    scales: {
+
+                        x: {
+
+                            grid: {
+
+                                display: false
+
+                            },
+
+                            border: {
+
+                                display: false
+
+                            },
+
+                            ticks: {
+
+                                autoSkip: false,
+
+                                color: "#1e293b",
+
+                                padding: 8,
+
+                                font: {
+
+                                    size: 12,
+
+                                    weight: "600",
+
+                                    family:
+                                        "Segoe UI, sans-serif"
+
+                                }
+
+                            }
+
+                        },
+
+                        y: {
+
+                            display: false,
+
+                            beginAtZero: true,
+
+                            grace: "20%"
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
+
+    setTimeout(() => {
+
+        const scroll =
+            canvas.closest(".chart-scroll");
+
+        if (scroll) {
+
+            scroll.scrollLeft =
+                scroll.scrollWidth;
+
+        }
+
+    }, 100);
+}
+
+function crearGraficoHoyProduccionAltas(data) {
+    const labels = [];
+    const porcentajes = [];
+    const hoy = new Date();
+
+    for (let i = 29; i >= 0; i--) {
+        const fecha = new Date(hoy);
+        fecha.setDate(fecha.getDate() - i);
+        fecha.setHours(0, 0, 0, 0);
+
+        const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+
+        let c = 0;
+        let nr = 0;
+
+        data.forEach(item => {
+            const tipo = (item.Tipo_de_Actividad || "").toString().trim().toLowerCase();
+            if (tipo !== "alta" && tipo !== "alta traslado" && tipo !== "migración" && tipo !== "migracion") return;
+
+            const f = obtenerFechaObjeto(item);
+            if (!f) return;
+
+            const itemKey = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+            if (itemKey !== key) return;
+
+            const estado = (item.Estado || "").toString().trim().toLowerCase();
+            if (estado === "completado") c++;
+            if (estado === "no realizada") nr++;
+        });
+
+        const total = c + nr;
+        const porcentaje = total > 0 ? Number(((c / total) * 100).toFixed(1)) : 0;
+        const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+        labels.push([
+            diasSemana[fecha.getDay()],
+            `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}`
+        ]);
+        porcentajes.push(porcentaje);
+    }
+
+    const canvas = document.getElementById("chartHoyAltas1");
+    if (!canvas) return;
+
+    if (window.chartHoyAltas1Instance) {
+        window.chartHoyAltas1Instance.destroy();
+    }
+
+    window.chartHoyAltas1Instance = new Chart(canvas.getContext("2d"), {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "% Efectividad",
+                data: porcentajes,
+                borderColor: "#1d2a57",
+                backgroundColor: "#1d2a57",
+                borderWidth: 2.5,
+                tension: 0.2,
+                spanGaps: true,
+                pointRadius: 4,
+                pointBackgroundColor: "#1d2a57",
+                pointBorderColor: "#1d2a57",
+                datalabels: {
+                    anchor: context => context.dataIndex % 2 === 0 ? "top" : "bottom",
+                    align: context => context.dataIndex % 2 === 0 ? "end" : "start",
+                    offset: 6,
+                    color: "#1d2a57",
+                    font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
+                    formatter: value => value + "%"
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            layout: { padding: { top: 25, bottom: 25, left: 10, right: 10 } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: {
+                        autoSkip: false,
+                        color: "#1e293b",
+                        padding: 8,
+                        font: { size: 12, weight: "600", family: "Segoe UI, sans-serif" }
+                    }
+                },
+                y: { display: false, beginAtZero: true, grace: "20%" }
+            }
+        }
+    });
+
+    setTimeout(() => {
+        const scroll = canvas.closest(".chart-scroll");
+        if (scroll) scroll.scrollLeft = scroll.scrollWidth;
+    }, 150);
+}
+
+function crearGraficoHoyRGUAltas(data) {
+    const labels = [];
+    const valores = [];
+    const hoy = new Date();
+
+    for (let i = 29; i >= 0; i--) {
+        const fecha = new Date(hoy);
+        fecha.setDate(fecha.getDate() - i);
+        fecha.setHours(0, 0, 0, 0);
+
+        const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+        const tecnicos = {};
+
+        data.forEach(item => {
+            const tipo = (item.Tipo_de_Actividad || "").toString().trim().toLowerCase();
+            if (tipo !== "alta" && tipo !== "alta traslado" && tipo !== "migración" && tipo !== "migracion") return;
+
+            const f = obtenerFechaObjeto(item);
+            if (!f) return;
+
+            const itemKey = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+            if (itemKey !== key) return;
+
+            const estado = (item.Estado || "").toString().trim().toLowerCase();
+            if (estado !== "completado") return;
+
+            const tecnico = (item.Tecnico || "").toString().trim();
+            if (!tecnico) return;
+
+            let rgu = item.RGU ?? 0;
+            if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
+            rgu = Number(rgu) || 0;
+
+            if (!tecnicos[tecnico]) tecnicos[tecnico] = 0;
+            tecnicos[tecnico] += rgu;
+        });
+
+        const listaTecnicos = Object.keys(tecnicos);
+        let promedio = 0;
+
+        if (listaTecnicos.length > 0) {
+            let suma = 0;
+            listaTecnicos.forEach(tecnico => { suma += tecnicos[tecnico]; });
+            promedio = suma / listaTecnicos.length;
+        }
+
+        promedio = Number(promedio.toFixed(1));
+        const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+        labels.push([
+            diasSemana[fecha.getDay()],
+            `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}`
+        ]);
+        valores.push(promedio);
+    }
+
+    const canvas = document.getElementById("chartHoyAltas2");
+    if (!canvas) return;
+
+    if (window.chartHoyAltas2Instance) {
+        window.chartHoyAltas2Instance.destroy();
+    }
+
+    window.chartHoyAltas2Instance = new Chart(canvas.getContext("2d"), {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "RGU",
+                data: valores,
+                borderColor: "#1d2a57",
+                backgroundColor: "#1d2a57",
+                borderWidth: 2.5,
+                tension: 0.2,
+                spanGaps: true,
+                pointRadius: 4,
+                pointBackgroundColor: "#1d2a57",
+                pointBorderColor: "#1d2a57",
+                datalabels: {
+                    anchor: context => context.dataIndex % 2 === 0 ? "top" : "bottom",
+                    align: context => context.dataIndex % 2 === 0 ? "end" : "start",
+                    offset: 6,
+                    color: "#1d2a57",
+                    font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
+                    formatter: value => value.toString().replace(".", ",")
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            layout: { padding: { top: 25, bottom: 25, left: 10, right: 10 } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: {
+                        autoSkip: false,
+                        color: "#1e293b",
+                        padding: 8,
+                        font: { size: 12, weight: "600", family: "Segoe UI, sans-serif" }
+                    }
+                },
+                y: { display: false, beginAtZero: true, grace: "20%" }
+            }
+        }
+    });
+
+    setTimeout(() => {
+        const scroll = canvas.closest(".chart-scroll");
+        if (scroll) scroll.scrollLeft = scroll.scrollWidth;
+    }, 150);
+}
+
+function crearGraficoHoyDuracionAltas(data) {
+    const labels = [];
+    const valores = [];
+    const hoy = new Date();
+
+    for (let i = 29; i >= 0; i--) {
+        const fecha = new Date(hoy);
+        fecha.setDate(fecha.getDate() - i);
+        fecha.setHours(0, 0, 0, 0);
+
+        const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+        let suma = 0;
+        let cantidad = 0;
+
+        data.forEach(item => {
+            const tipo = (item.Tipo_de_Actividad || "").toString().trim().toLowerCase();
+            if (tipo !== "alta" && tipo !== "alta traslado" && tipo !== "migración" && tipo !== "migracion") return;
+
+            const f = obtenerFechaObjeto(item);
+            if (!f) return;
+
+            const itemKey = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+            if (itemKey !== key) return;
+
+            const estado = (item.Estado || "").toString().trim().toLowerCase();
+            if (estado !== "completado") return;
+
+            const inicio = item.Inicio || item.Hora_Inicio;
+            const fin = item.Fin || item.Hora_Fin;
+
+            const diferencia = calcularDiferenciaMinutos(inicio, fin);
+            if (diferencia !== null && diferencia >= 0 && diferencia < 720) {
+                suma += diferencia;
+                cantidad++;
+            }
+        });
+
+        const promedio = cantidad > 0 ? Math.round(suma / cantidad) : 0;
+        const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+        labels.push([
+            diasSemana[fecha.getDay()],
+            `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}`
+        ]);
+        valores.push(promedio);
+    }
+
+    const canvas = document.getElementById("chartHoyAltas3");
+    if (!canvas) return;
+
+    if (window.chartHoyAltas3Instance) {
+        window.chartHoyAltas3Instance.destroy();
+    }
+
+    window.chartHoyAltas3Instance = new Chart(canvas.getContext("2d"), {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Duración promedio",
+                data: valores,
+                borderColor: "#1d2a57",
+                backgroundColor: "#1d2a57",
+                borderWidth: 2.5,
+                tension: 0.2,
+                spanGaps: true,
+                pointRadius: 4,
+                pointBackgroundColor: "#1d2a57",
+                pointBorderColor: "#1d2a57",
+                datalabels: {
+                    anchor: context => context.dataIndex % 2 === 0 ? "top" : "bottom",
+                    align: context => context.dataIndex % 2 === 0 ? "end" : "start",
+                    offset: 6,
+                    color: "#1d2a57",
+                    font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
+                    formatter: function (value) {
+                        if (value === null || value === undefined) return "";
+                        const horas = Math.floor(value / 60);
+                        const minutos = value % 60;
+                        return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+                    }
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            layout: { padding: { top: 25, bottom: 25, left: 10, right: 10 } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: {
+                        autoSkip: false,
+                        color: "#1e293b",
+                        padding: 8,
+                        font: { size: 12, weight: "600", family: "Segoe UI, sans-serif" }
+                    }
+                },
+                y: { display: false, beginAtZero: true, grace: "20%" }
+            }
+        }
+    });
+
+    setTimeout(() => {
+        const scroll = canvas.closest(".chart-scroll");
+        if (scroll) scroll.scrollLeft = scroll.scrollWidth;
+    }, 150);
 }

@@ -233,6 +233,7 @@
         <!-- Botones Píldora -->
         <div class="tabs-navigation">
             <button class="tab-btn active" onclick="cambiarVista('hoy', this)">Diarios (Global)</button>
+            <button class="tab-btn active" onclick="cambiarVista('altas', this)">Diarios Alt/ Tras/ Mig</button>
             <button class="tab-btn" onclick="cambiarVista('historico', this)">Histórico</button>
             <button class="tab-btn" onclick="cambiarVista('detalles', this)">Detalles</button>
         </div>
@@ -280,7 +281,34 @@
             </div>
 
         </div>
+        <!-- Vista Diarios (Altas) -->
+        <div id="viewAltas" class="tab-view hidden " style="padding-top: 2rem;">
+            <h1>Indicadores Diarios Alta / Alta Traslado / Migración</h1>
+            <!-- Gráfico 1: % Efectividad -->
+            <div class="chart-container">
+                <h3>Efectividad (%) - Últimos 30 días</h3>
+                <div class="chart-scroll">
+                    <canvas id="chartHoyAltas1"></canvas>
+                </div>
+            </div>
 
+            <!-- Gráfico 2: Promedio RGU -->
+            <div class="chart-container">
+                <h3>Promedio RGU por Técnico</h3>
+                <div class="chart-scroll">
+                    <canvas id="chartHoyAltas2"></canvas>
+                </div>
+            </div>
+
+            <!-- Gráfico 3: Duración Promedio -->
+            <div class="chart-container">
+                <h3>Duración Promedio (HH:MM)</h3>
+                <div class="chart-scroll">
+                    <canvas id="chartHoyAltas3"></canvas>
+                </div>
+            </div>
+
+        </div>
         <!-- VISTA 2: HISTÓRICO (Mueve aquí tus gráficos actuales) -->
         <div id="viewHistorico" class="tab-view hidden" style="padding-top: 2rem;">
             <h1>Indicadores Históricos (Mes)</h1>
