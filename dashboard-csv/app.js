@@ -4128,7 +4128,7 @@ function crearGraficoHoyProduccion(data) {
         const porcentaje =
             total > 0
                 ? Number(((c / total) * 100).toFixed(1))
-                : null;
+                : 0;
 
         const diasSemana = [
             "Dom",
@@ -4196,17 +4196,9 @@ function crearGraficoHoyProduccion(data) {
 
                         datalabels: {
 
-                            anchor:
-                                context =>
-                                    context.dataIndex % 2 === 0
-                                        ? "top"
-                                        : "bottom",
+                            anchor:"top",
 
-                            align:
-                                context =>
-                                    context.dataIndex % 2 === 0
-                                        ? "end"
-                                        : "start",
+                            align:"end",
 
                             offset: 6,
 
@@ -4220,10 +4212,7 @@ function crearGraficoHoyProduccion(data) {
                                     "Segoe UI, sans-serif"
                             },
 
-                            formatter: value =>
-                                value !== null
-                                    ? value + "%"
-                                    : ""
+                            formatter: value => value + "%"
                         }
                     }]
                 },
@@ -4590,7 +4579,7 @@ function crearGraficoHoyDuracion(data) {
         const promedio =
             cantidad > 0
                 ? Math.round(suma / cantidad)
-                : null;
+                : 0;
 
         const diasSemana = [
             "Dom",
@@ -4654,17 +4643,9 @@ function crearGraficoHoyDuracion(data) {
 
                         datalabels: {
 
-                            anchor:
-                                context =>
-                                    context.dataIndex % 2 === 0
-                                        ? "top"
-                                        : "bottom",
+                            anchor:"top",
 
-                            align:
-                                context =>
-                                    context.dataIndex % 2 === 0
-                                        ? "end"
-                                        : "start",
+                            align: "end",
 
                             offset: 6,
 
