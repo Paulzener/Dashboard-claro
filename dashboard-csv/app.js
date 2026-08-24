@@ -3730,7 +3730,6 @@ function actualizarKPIsConDatos(data) {
 // ==========================================
 // KPIs PARA CUALQUIER VISTA
 // ==========================================
-
 function actualizarKPIsVista(data) {
 
     const total = data.length;
@@ -3964,6 +3963,9 @@ function actualizarKPIsVista(data) {
     }
 }
 
+// ==========================================
+// 3 Graficos diarios (Global)
+// ==========================================
 function crearGraficoHoyProduccion(data) {
 
     const labels = [];
@@ -4531,13 +4533,17 @@ function crearGraficoHoyDuracion(data) {
         }, 100);
 }
 
+// ==========================================
+// Función para Scroll de graficos
+// ==========================================
 function moverScrollGraficosAlFinal() {
     document.querySelectorAll(".chart-scroll").forEach(scroll => {
         scroll.scrollLeft = scroll.scrollWidth;
     });
 }
 
-// 3 Graficos de Alta - Traslado - Migración
+//-----------------------------------------
+// 3 Graficos diarios filtrados por:  Alta - Traslado - Migración
 function crearGraficoHoyProduccionAltas(data) {
     const labels = [];
     const porcentajes = [];
