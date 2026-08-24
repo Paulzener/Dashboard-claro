@@ -42,9 +42,7 @@ app.get('/api/actividades', async (req, res) => {
         const pool = await poolPromise;
 
         if (!pool) {
-            return res.status(500).json({
-                error: "No hay conexión disponible con SQL Server."
-            });
+            return res.status(500).json({ error: "No hay conexión disponible con SQL Server." });
         }
 
         const result = await pool.request().query(`
@@ -76,21 +74,17 @@ app.get('/api/actividades', async (req, res) => {
             CROSS APPLY (
                 SELECT
                     NULLIF(
-                        LTRIM(
-                            RTRIM(
-                                CASE
-                                    WHEN CHARINDEX('_ZENER_', UPPER(R.[Tecnico])) > 0
-                                        THEN SUBSTRING(R.[Tecnico], CHARINDEX('_ZENER_', UPPER(R.[Tecnico])) + LEN('_ZENER_'), LEN(R.[Tecnico]))
-                                    WHEN CHARINDEX('_ZENE_', UPPER(R.[Tecnico])) > 0
-                                        THEN SUBSTRING(R.[Tecnico], CHARINDEX('_ZENE_', UPPER(R.[Tecnico])) + LEN('_ZENE_'), LEN(R.[Tecnico]))
-                                    WHEN UPPER(R.[Tecnico]) LIKE 'ZENER_%'
-                                        THEN STUFF(R.[Tecnico], 1, LEN('ZENER_'), '')
-                                    WHEN UPPER(R.[Tecnico]) LIKE 'ZENE_%'
-                                        THEN STUFF(R.[Tecnico], 1, LEN('ZENE_'), '')
-                                    ELSE R.[Tecnico]
-                                END
-                            )
-                        ),
+                        LTRIM(RTRIM(
+                            CASE
+                                WHEN CHARINDEX('_ZENER_', UPPER(R.[Tecnico])) > 0
+                                    THEN SUBSTRING(R.[Tecnico], CHARINDEX('_ZENER_', UPPER(R.[Tecnico])) + LEN('_ZENER_'), LEN(R.[Tecnico]))
+                                WHEN CHARINDEX('_ZENE_', UPPER(R.[Tecnico])) > 0
+                                    THEN SUBSTRING(R.[Tecnico], CHARINDEX('_ZENE_', UPPER(R.[Tecnico])) + LEN('_ZENE_'), LEN(R.[Tecnico]))
+                                WHEN CHARINDEX('_', R.[Tecnico]) > 0
+                                    THEN RIGHT(R.[Tecnico], CHARINDEX('_', REVERSE(R.[Tecnico])) - 1)
+                                ELSE R.[Tecnico]
+                            END
+                        )),
                         ''
                     ) AS [TecnicoLimpio]
             ) AS T
@@ -99,25 +93,13 @@ app.get('/api/actividades', async (req, res) => {
                 T.[TecnicoLimpio];
         `);
 
-        console.table(
-            result.recordset
-                .slice(0, 30)
-                .map(item => ({
-                    TecnicoOriginal: item.TecnicoOriginal,
-                    Tecnico: item.Tecnico
-                }))
-        );
-
-        // Se envía la respuesta una sola vez usando 'return'
         return res.json(result.recordset);
 
     } catch (err) {
         console.error('❌ Error de SQL Server:', err);
-
         return res.status(500).json({
             error: "Error interno del servidor",
-            detalle: err.message,
-            sqlState: err.code
+            detalle: err.message
         });
     }
 });

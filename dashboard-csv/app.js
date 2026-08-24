@@ -4256,236 +4256,155 @@ function crearGraficoHoyProduccion(data) {
 }
 
 function crearGraficoHoyRGU(data) {
-
     const labels = [];
     const valores = [];
 
+    // 1. Fijar medianoche local para evitar saltos por zona horaria o DST
     const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
 
     for (let i = 29; i >= 0; i--) {
-
         const fecha = new Date(hoy);
+        fecha.setDate(fecha.getDate() - i);
 
-        fecha.setDate(
-            fecha.getDate() - i
-        );
-
-        fecha.setHours(0, 0, 0, 0);
-
-        const key =
-            `${fecha.getFullYear()}-` +
-            `${String(fecha.getMonth() + 1).padStart(2, '0')}-` +
-            `${String(fecha.getDate()).padStart(2, '0')}`;
+        // Clave YYYY-MM-DD
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        const key = `${year}-${month}-${day}`;
 
         const tecnicos = {};
 
         data.forEach(item => {
+            const fechaRaw = item.Origen || item.Fecha;
+            if (!fechaRaw) return;
 
-            const f =
-                obtenerFechaObjeto(item);
+            // Extraer YYYY-MM-DD evitando la conversión UTC no deseada
+            let itemKey = "";
+            const rawStr = String(fechaRaw).trim();
 
-            if (!f) return;
-
-            const itemKey =
-                `${f.getFullYear()}-` +
-                `${String(f.getMonth() + 1).padStart(2, '0')}-` +
-                `${String(f.getDate()).padStart(2, '0')}`;
+            if (rawStr.length >= 10) {
+                // Toma directo los primeros 10 caracteres (YYYY-MM-DD o YYYY-MM-DDT...)
+                itemKey = rawStr.substring(0, 10);
+            }
 
             if (itemKey !== key) return;
 
-            const estado =
-                (item.Estado || "")
-                    .toString()
-                    .trim()
-                    .toLowerCase();
-
-            if (estado !== "completado") return;
-
-            const tecnico =
-                (item.Tecnico || "")
-                    .toString()
-                    .trim();
-
-            if (!tecnico) return;
-
-            let rgu =
-                item.RGU ?? 0;
-
-            if (typeof rgu === "string") {
-                rgu =
-                    rgu
-                        .replace(",", ".")
-                        .trim();
+            // DIAGNÓSTICO: Muestra en consola qué registros del 08-12 se omiten por estado
+            if (key === '2026-08-12') {
+                const estCheck = (item.Estado || "").toString().trim().toLowerCase();
+                if (estCheck !== "completado" && estCheck !== "no realizada") {
+                    console.warn(`[Descartado por Estado 08-12]: Técnico: "${item.Tecnico}" | Estado: "${item.Estado}"`);
+                }
             }
+            // Filtro de Estado
+            const estado = (item.Estado || "").toString().trim().toLowerCase();
+            if (estado !== "completado" && estado !== "no realizada") return;
 
-            rgu =
-                Number(rgu) || 0;
+            // Normalizar Técnico: Mayúsculas y sin acentos (Iguala colación SQL CI_AI)
+            let tecnico = (item.Tecnico || "").toString().trim().toUpperCase();
+            if (!tecnico) return;
+            tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-            if (!tecnicos[tecnico]) {
+            // Parsear RGU
+            let rgu = item.RGU ?? 0;
+            if (typeof rgu === "string") {
+                rgu = rgu.replace(",", ".").trim();
+            }
+            rgu = Number(rgu) || 0;
+
+            if (!(tecnico in tecnicos)) {
                 tecnicos[tecnico] = 0;
             }
-
             tecnicos[tecnico] += rgu;
+
         });
 
-        const listaTecnicos =
-            Object.keys(tecnicos);
-
+        const listaTecnicos = Object.keys(tecnicos);
         let promedio = 0;
 
         if (listaTecnicos.length > 0) {
-
             let suma = 0;
-
-            listaTecnicos.forEach(tecnico => {
-                suma += tecnicos[tecnico];
+            listaTecnicos.forEach(tec => {
+                suma += tecnicos[tec];
             });
+            promedio = suma / listaTecnicos.length;
 
-            promedio =
-                suma /
-                listaTecnicos.length;
+            // Cambia la fecha de diagnóstico al 12 de agosto
+            if (key === '2026-08-12') {
+                console.log(`[JS Debug 12/08] Suma RGU: ${suma} | Cant. Técnicos: ${listaTecnicos.length}`);
+                console.log("Lista de técnicos contados en JS:", listaTecnicos.sort());
+            }
+
         }
 
-        const diasSemana = [
-            "Dom",
-            "Lun",
-            "Mar",
-            "Miér",
-            "Jue",
-            "Vie",
-            "Sáb"
-        ];
+        const diasSemana = ["Dom", "Lun", "Mar", "Miér", "Jue", "Vie", "Sáb"];
 
         labels.push([
             diasSemana[fecha.getDay()],
-            `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}`
+            `${day}/${month}`
         ]);
 
-        valores.push(
-            Number(promedio.toFixed(1))
-        );
+        valores.push(Number(promedio.toFixed(2)));
     }
 
-    const canvas =
-        document.getElementById("chartHoy2");
-
-
+    const canvas = document.getElementById("chartHoy2");
     if (!canvas) return;
 
     if (chartHoy2Instance) {
         chartHoy2Instance.destroy();
     }
-    const diasMostrar = 30;
 
-    chartHoy2Instance =
-        new Chart(
-            canvas.getContext("2d"),
-            {
-                type: "line",
-
-                data: {
-                    labels: labels,
-
-                    datasets: [{
-                        label: "RGU",
-
-                        data: valores,
-
-                        borderColor: "#1d2a57",
-
-                        backgroundColor: "#1d2a57",
-
-                        borderWidth: 2.5,
-
-                        tension: 0.2,
-
-                        spanGaps: true,
-
-                        pointRadius: 4,
-
-                        datalabels: {
-
-                            anchor: "top",
-
-                            align: "end",
-
-                            offset: 6,
-
-                            color:
-                                "#1d2a57",
-
-                            font: {
-                                size: 11,
-                                weight: "bold",
-                                family:
-                                    "Segoe UI, sans-serif"
-                            },
-
-                            formatter:
-                                value =>
-
-                                    value !== null
-                                        ? value
-                                            .toString()
-                                            .replace(
-                                                ".",
-                                                ","
-                                            ) + ""
-                                        : ""
-                        }
-                    }]
-                },
-
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-
-                    layout: {
-                        padding: {
-                            top: 25,
-                            bottom: 5,
-                            left: 10,
-                            right: 10
-                        }
-                    },
-
-                    scales: {
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            border: {
-                                display: false
-                            },
-                            ticks: {
-                                autoSkip: false,
-                                color: "#1e293b",
-                                padding: 8,
-                                font: {
-                                    size: 12,
-                                    weight: "600",
-                                    family: "Segoe UI, sans-serif"
-                                }
-                            }
-                        },
-
-                        y: {
-                            display: false,
-                            beginAtZero: true,
-                            grace: "0%"
-                        }
-                    }
+    chartHoy2Instance = new Chart(canvas.getContext("2d"), {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "RGU",
+                data: valores,
+                borderColor: "#1d2a57",
+                backgroundColor: "#1d2a57",
+                borderWidth: 2.5,
+                tension: 0.2,
+                spanGaps: true,
+                pointRadius: 4,
+                datalabels: {
+                    anchor: "top",
+                    align: "end",
+                    offset: 6,
+                    color: "#1d2a57",
+                    font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
+                    formatter: value => value !== null ? value.toString().replace(".", ",") : ""
                 }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            layout: { padding: { top: 25, bottom: 5, left: 10, right: 10 } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: {
+                        autoSkip: false,
+                        color: "#1e293b",
+                        padding: 8,
+                        font: { size: 12, weight: "600", family: "Segoe UI, sans-serif" }
+                    }
+                },
+                y: { display: false, beginAtZero: true, grace: "0%" }
             }
-        ); setTimeout(() => {
+        }
+    });
+
+    setTimeout(() => {
+        if (typeof moverScrollGraficosAlFinal === "function") {
             moverScrollGraficosAlFinal();
-        }, 100);
+        }
+
+    }, 100);
 }
 
 function crearGraficoHoyDuracion(data) {
@@ -4789,8 +4708,8 @@ function crearGraficoHoyProduccionAltas(data) {
                 pointBackgroundColor: "#1d2a57",
                 pointBorderColor: "#1d2a57",
                 datalabels: {
-                    anchor: "top" ,
-                    align: "end" ,
+                    anchor: "top",
+                    align: "end",
                     offset: 6,
                     color: "#1d2a57",
                     font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
@@ -4904,8 +4823,8 @@ function crearGraficoHoyRGUAltas(data) {
                 pointBackgroundColor: "#1d2a57",
                 pointBorderColor: "#1d2a57",
                 datalabels: {
-                    anchor: "top" ,
-                    align: "end" ,
+                    anchor: "top",
+                    align: "end",
                     offset: 6,
                     color: "#1d2a57",
                     font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
@@ -5010,8 +4929,8 @@ function crearGraficoHoyDuracionAltas(data) {
                 pointBackgroundColor: "#1d2a57",
                 pointBorderColor: "#1d2a57",
                 datalabels: {
-                    anchor: "top" ,
-                    align: "end" ,
+                    anchor: "top",
+                    align: "end",
                     offset: 6,
                     color: "#1d2a57",
                     font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
