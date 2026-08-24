@@ -1288,7 +1288,6 @@ function actualizarKPIs() {
 // ==========================================
 
 function formatearHoraRedondeada(valor) {
-
     if (
         valor === null ||
         valor === undefined ||
@@ -1297,41 +1296,18 @@ function formatearHoraRedondeada(valor) {
         return "-";
     }
 
-
     const partes = String(valor).trim().split(":");
 
-
     if (partes.length >= 2) {
+        const h = parseInt(partes[0].slice(-2), 10);
+        const m = parseInt(partes[1], 10);
 
-        let h = parseInt(partes[0].slice(-2), 10);
-
-        let m = parseInt(partes[1], 10);
-
-        const s = partes[2] ? parseInt(partes[2], 10) : 0;
-
-
-        if (s >= 30) {
-            m++;
-        }
-
-
-        if (m >= 60) {
-
-            m = 0;
-
-            h = (h + 1) % 24;
-        }
-
-
-        if (!isNaN(h) && !isNaN(m)
-        ) {
-
+        if (!isNaN(h) && !isNaN(m)) {
             return (
                 String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0")
             );
         }
     }
-
 
     return valor;
 }
