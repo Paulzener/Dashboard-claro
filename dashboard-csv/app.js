@@ -577,7 +577,6 @@ function actualizarTextoTrigger(
 function obtenerFechaObjeto(item) {
     if (!item) return null;
 
-    // La fecha real viene desde SQL Server como "Fecha"
     const rawFecha =
         item.Fecha ??
         item.FECHA ??
@@ -592,36 +591,27 @@ function obtenerFechaObjeto(item) {
     }
 
     const str = String(rawFecha).trim();
-
     if (!str) return null;
 
-    // Si viene en formato ISO con Z:
-    // 2026-06-02T00:00:00.000Z
-    // usamos UTC para evitar que Chile lo convierta al día anterior.
-    const matchISO = str.match(
-        /^(\d{4})-(\d{2})-(\d{2})(?:T|\s)(\d{2}):(\d{2})(?::(\d{2}))?/
-    );
+    // 1. Formatos YYYY-MM-DD, YYYY/MM/DD o ISO (2026-06-01T00:00:00)
+    const matchYMD = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+    if (matchYMD) {
+        const ano = Number(matchYMD[1]);
+        const mes = Number(matchYMD[2]) - 1; // 0 = Enero, 11 = Diciembre
+        const dia = Number(matchYMD[3]);
+        return new Date(ano, mes, dia);
+    }
 
-    if (matchISO) {
-        const año = Number(matchISO[1]);
-        const mes = Number(matchISO[2]) - 1;
-        const dia = Number(matchISO[3]);
-        const hora = Number(matchISO[4] || 0);
-        const minuto = Number(matchISO[5] || 0);
-        const segundo = Number(matchISO[6] || 0);
-
-        return new Date(
-            año,
-            mes,
-            dia,
-            hora,
-            minuto,
-            segundo
-        );
+    // 2. Formatos DD/MM/YYYY o DD-MM-YYYY
+    const matchDMY = str.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+    if (matchDMY) {
+        const dia = Number(matchDMY[1]);
+        const mes = Number(matchDMY[2]) - 1;
+        const ano = Number(matchDMY[3]);
+        return new Date(ano, mes, dia);
     }
 
     const d = new Date(str);
-
     return isNaN(d.getTime()) ? null : d;
 }
 
@@ -1630,9 +1620,6 @@ function crearGraficoProduccion() {
 
 // ==========================================
 // GRÁFICO PROMEDIO GENERAL HISTÓRICO RGU
-//
-// REPLICA:
-//
 // 1. Limpieza de Técnico como SQL
 // 2. Promedio de SUM(RGU) por Origen
 // 3. Promedio de resultados por Técnico
@@ -1946,25 +1933,14 @@ function crearGraficoRGU() {
     // ==========================================
 
     function convertirFechaLocal(valor) {
-
-        if (
-            valor === null ||
-            valor === undefined ||
-            String(valor).trim() === ""
-        ) {
+        // 1. Control de nulos y vacíos
+        if (valor === null || valor === undefined || String(valor).trim() === "") {
             return null;
         }
 
-        // --------------------------------------
-        // YA ES UN OBJETO DATE
-        // --------------------------------------
-
+        // 2. Si ya es un objeto Date
         if (valor instanceof Date) {
-
-            if (Number.isNaN(valor.getTime())) {
-                return null;
-            }
-
+            if (Number.isNaN(valor.getTime())) return null;
             return crearFechaValidada(
                 valor.getFullYear(),
                 valor.getMonth(),
@@ -1972,118 +1948,77 @@ function crearGraficoRGU() {
             );
         }
 
-        const texto =
-            String(valor).trim();
+        const texto = String(valor).trim();
 
-        // --------------------------------------
-        // FORMATO YYYY-MM-DD
-        // FORMATO YYYY/MM/DD
-        // FORMATO YYYY-MM-DDTHH:mm:ss
-        // --------------------------------------
-
-        let coincidencia =
-            texto.match(
-                /^(\d{4})\d{1,2}\d{1,2}/
-            );
-
+        // 3. Formato YYYY-MM-DD / YYYY/MM/DD / ISO (ej: 2026-08-24T15:30:00)
+        let coincidencia = texto.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
         if (coincidencia) {
-
-            const anio =
-                Number(coincidencia[1]);
-
-            const mes =
-                Number(coincidencia[2]) - 1;
-
-            const dia =
-                Number(coincidencia[3]);
-
             return crearFechaValidada(
-                anio,
-                mes,
-                dia
+                Number(coincidencia[1]),
+                Number(coincidencia[2]) - 1,
+                Number(coincidencia[3])
             );
         }
 
-        // --------------------------------------
-        // FORMATOS:
-        //
-        // DD/MM/YYYY
-        // DD-MM-YYYY
-        // DD.MM.YYYY
-        // --------------------------------------
-
-        coincidencia =
-            texto.match(
-                /^(\d{1,2})\d{1,2}\d{4}/
-            );
-
+        // 4. Formato DD/MM/YYYY / DD-MM-YYYY / DD.MM.YYYY
+        coincidencia = texto.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
         if (coincidencia) {
-
-            const dia =
-                Number(coincidencia[1]);
-
-            const mes =
-                Number(coincidencia[2]) - 1;
-
-            const anio =
-                Number(coincidencia[3]);
-
             return crearFechaValidada(
-                anio,
-                mes,
-                dia
+                Number(coincidencia[3]), // Año
+                Number(coincidencia[2]) - 1, // Mes (0-11)
+                Number(coincidencia[1]) // Día
             );
         }
 
-        // --------------------------------------
-        // TIMESTAMP NUMÉRICO
-        // --------------------------------------
+        // 5. Formato compacto sin separadores YYYYMMDD (ej: 20260824)
+        coincidencia = texto.match(/^(\d{4})(\d{2})(\d{2})$/);
+        if (coincidencia) {
+            return crearFechaValidada(
+                Number(coincidencia[1]),
+                Number(coincidencia[2]) - 1,
+                Number(coincidencia[3])
+            );
+        }
 
-        if (/^\d+$/.test(texto)) {
+        // 6. Timestamps numéricos o Números de Serie de Excel
+        if (/^\d+(\.\d+)?$/.test(texto)) {
+            let numero = Number(texto);
 
-            let numero =
-                Number(texto);
+            // Soporte para fechas de Excel (ej: 45123)
+            if (numero >= 25569 && numero < 100000) {
+                const fechaExcel = new Date((numero - 25569) * 86400000);
+                return crearFechaValidada(
+                    fechaExcel.getUTCFullYear(),
+                    fechaExcel.getUTCMonth(),
+                    fechaExcel.getUTCDate()
+                );
+            }
 
-            /*
-             * Timestamp Unix en segundos.
-             */
+            // Timestamp Unix en segundos (10 dígitos)
             if (texto.length === 10) {
                 numero *= 1000;
             }
 
-            const fechaTimestamp =
-                new Date(numero);
-
-            if (
-                Number.isNaN(
-                    fechaTimestamp.getTime()
-                )
-            ) {
-                return null;
+            const fechaTimestamp = new Date(numero);
+            if (!Number.isNaN(fechaTimestamp.getTime())) {
+                return crearFechaValidada(
+                    fechaTimestamp.getFullYear(),
+                    fechaTimestamp.getMonth(),
+                    fechaTimestamp.getDate()
+                );
             }
-
-            return crearFechaValidada(
-                fechaTimestamp.getFullYear(),
-                fechaTimestamp.getMonth(),
-                fechaTimestamp.getDate()
-            );
         }
 
-        // --------------------------------------
-        // ÚLTIMO INTENTO
-        // --------------------------------------
-
-        const fecha =
-            new Date(texto);
-
-        if (Number.isNaN(fecha.getTime())) {
+        // 7. Último intento: Parseo nativo de JS (ej: "Aug 24, 2026")
+        const fechaNativa = new Date(texto);
+        if (Number.isNaN(fechaNativa.getTime())) {
             return null;
         }
 
         return crearFechaValidada(
-            fecha.getFullYear(),
-            fecha.getMonth(),
-            fecha.getDate()
+            fechaNativa.getFullYear(),
+            fechaNativa.getMonth(),
+            fechaNativa.getDate()
         );
     }
 
@@ -3446,59 +3381,31 @@ function actualizarVistaHoy() {
 }
 
 function obtenerDatosFiltrados() {
-    const totalAno =
-        document.querySelectorAll(
-            "#multiselectAno .multiselect-options input"
-        ).length;
+    const totalAno = document.querySelectorAll("#multiselectAno .multiselect-options input").length;
+    const totalMes = document.querySelectorAll("#multiselectMes .multiselect-options input").length;
+    const totalActividad = document.querySelectorAll("#multiselectActividad .multiselect-options input").length;
+    const totalCiudad = document.querySelectorAll("#multiselectCiudad .multiselect-options input").length;
+    const totalZona = document.querySelectorAll("#multiselectZona .multiselect-options input").length;
 
-    const totalMes =
-        document.querySelectorAll(
-            "#multiselectMes .multiselect-options input"
-        ).length;
-
-    const totalActividad =
-        document.querySelectorAll(
-            "#multiselectActividad .multiselect-options input"
-        ).length;
-
-    const totalCiudad =
-        document.querySelectorAll(
-            "#multiselectCiudad .multiselect-options input"
-        ).length;
-
-    const totalZona =
-        document.querySelectorAll(
-            "#multiselectZona .multiselect-options input"
-        ).length;
+    // Nombres exactos como vienen en el multiselect
+    const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
     const resultado = rawData.filter(item => {
-        const fechaObj =
-            obtenerFechaObjeto(item);
+        const fechaRaw = String(item.Fecha || item.Origen || "").trim();
+        let itemAno = "";
+        let itemMes = "";
 
-        const itemAno =
-            fechaObj
-                ? String(fechaObj.getFullYear())
-                : "";
+        // Extraer YYYY y MM directamente del texto para evitar problemas de zona horaria (UTC)
+        const match = fechaRaw.match(/^(\d{4})-(\d{2})/);
+        if (match) {
+            itemAno = match[1];
+            const numMes = parseInt(match[2], 10) - 1; // Convertir 01-12 a índice 0-11
+            itemMes = nombresMeses[numMes] || "";
+        }
 
-        const itemMes =
-            fechaObj
-                ? ordenMeses[fechaObj.getMonth()]
-                : "";
-
-        const itemActividad =
-            String(
-                item.Tipo_de_Actividad ?? ""
-            ).trim();
-
-        const itemCiudad =
-            String(
-                item.Ciudad ?? ""
-            ).trim();
-
-        const itemZona =
-            String(
-                item.Zona_de_trabajo ?? ""
-            ).trim();
+        const itemActividad = String(item.Tipo_de_Actividad ?? "").trim();
+        const itemCiudad = String(item.Ciudad ?? "").trim();
+        const itemZona = String(item.Zona_de_trabajo ?? "").trim();
 
         const cumpleAno =
             totalAno === 0 ||
@@ -3538,7 +3445,6 @@ function obtenerDatosFiltrados() {
             cumpleZona
         );
     });
-
 
     return resultado;
 }
@@ -4256,68 +4162,68 @@ function crearGraficoHoyProduccion(data) {
 }
 
 function crearGraficoHoyRGU(data) {
+    if (!data || data.length === 0) return;
+
+    // Helper para extraer YYYY-MM-DD sin desfase por zona horaria/UTC
+    const obtenerFechaKey = (item) => {
+        const raw = item.Fecha || item.Origen; // Usa primero el campo por el que filtraste
+        if (!raw) return null;
+
+        // Si es string ISO o con hora, tomamos solo la parte de la fecha
+        const str = String(raw).trim();
+        const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
+        return match ? match[1] : null;
+    };
+
+    // 1. Extraer claves válidas
+    const fechasValidas = new Set();
+    data.forEach(item => {
+        const key = obtenerFechaKey(item);
+        if (key) fechasValidas.add(key);
+    });
+
+    if (fechasValidas.size === 0) return;
+
+    // 2. Determinar el rango de fechas
+    const fechasOrdenadas = Array.from(fechasValidas).sort();
+    const [minY, minM, minD] = fechasOrdenadas[0].split('-').map(Number);
+    const [maxY, maxM, maxD] = fechasOrdenadas[fechasOrdenadas.length - 1].split('-').map(Number);
+
+    const fechaInicio = new Date(minY, minM - 1, minD);
+    const fechaFin = new Date(maxY, maxM - 1, maxD);
+
     const labels = [];
     const valores = [];
+    const diasSemana = ["Dom", "Lun", "Mar", "Miér", "Jue", "Vie", "Sáb"];
 
-    // 1. Fijar medianoche local para evitar saltos por zona horaria o DST
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    // 3. Recorrer día a día
+    let cursor = new Date(fechaInicio);
 
-    for (let i = 29; i >= 0; i--) {
-        const fecha = new Date(hoy);
-        fecha.setDate(fecha.getDate() - i);
-
-        // Clave YYYY-MM-DD
-        const year = fecha.getFullYear();
-        const month = String(fecha.getMonth() + 1).padStart(2, '0');
-        const day = String(fecha.getDate()).padStart(2, '0');
+    while (cursor <= fechaFin) {
+        const year = cursor.getFullYear();
+        const month = String(cursor.getMonth() + 1).padStart(2, '0');
+        const day = String(cursor.getDate()).padStart(2, '0');
         const key = `${year}-${month}-${day}`;
 
         const tecnicos = {};
 
         data.forEach(item => {
-            const fechaRaw = item.Origen || item.Fecha;
-            if (!fechaRaw) return;
-
-            // Extraer YYYY-MM-DD evitando la conversión UTC no deseada
-            let itemKey = "";
-            const rawStr = String(fechaRaw).trim();
-
-            if (rawStr.length >= 10) {
-                // Toma directo los primeros 10 caracteres (YYYY-MM-DD o YYYY-MM-DDT...)
-                itemKey = rawStr.substring(0, 10);
-            }
-
+            const itemKey = obtenerFechaKey(item);
             if (itemKey !== key) return;
 
-            // DIAGNÓSTICO: Muestra en consola qué registros del 08-12 se omiten por estado
-            if (key === '2026-08-12') {
-                const estCheck = (item.Estado || "").toString().trim().toLowerCase();
-                if (estCheck !== "completado" && estCheck !== "no realizada") {
-                    console.warn(`[Descartado por Estado 08-12]: Técnico: "${item.Tecnico}" | Estado: "${item.Estado}"`);
-                }
-            }
-            // Filtro de Estado
             const estado = (item.Estado || "").toString().trim().toLowerCase();
             if (estado !== "completado" && estado !== "no realizada") return;
 
-            // Normalizar Técnico: Mayúsculas y sin acentos (Iguala colación SQL CI_AI)
             let tecnico = (item.Tecnico || "").toString().trim().toUpperCase();
             if (!tecnico) return;
             tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-            // Parsear RGU
             let rgu = item.RGU ?? 0;
-            if (typeof rgu === "string") {
-                rgu = rgu.replace(",", ".").trim();
-            }
+            if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
             rgu = Number(rgu) || 0;
 
-            if (!(tecnico in tecnicos)) {
-                tecnicos[tecnico] = 0;
-            }
+            if (!(tecnico in tecnicos)) tecnicos[tecnico] = 0;
             tecnicos[tecnico] += rgu;
-
         });
 
         const listaTecnicos = Object.keys(tecnicos);
@@ -4325,27 +4231,21 @@ function crearGraficoHoyRGU(data) {
 
         if (listaTecnicos.length > 0) {
             let suma = 0;
-            listaTecnicos.forEach(tec => {
-                suma += tecnicos[tec];
-            });
+            listaTecnicos.forEach(tec => { suma += tecnicos[tec]; });
             promedio = suma / listaTecnicos.length;
-
         }
 
-        const diasSemana = ["Dom", "Lun", "Mar", "Miér", "Jue", "Vie", "Sáb"];
-
-        labels.push([
-            diasSemana[fecha.getDay()],
-            `${day}/${month}`
-        ]);
-
+        labels.push([diasSemana[cursor.getDay()], `${day}/${month}`]);
         valores.push(Number(promedio.toFixed(1)));
+
+        cursor.setDate(cursor.getDate() + 1);
     }
 
+    // 4. Renderizado Chart.js
     const canvas = document.getElementById("chartHoy2");
     if (!canvas) return;
 
-    if (chartHoy2Instance) {
+    if (typeof chartHoy2Instance !== "undefined" && chartHoy2Instance) {
         chartHoy2Instance.destroy();
     }
 
@@ -4397,7 +4297,6 @@ function crearGraficoHoyRGU(data) {
         if (typeof moverScrollGraficosAlFinal === "function") {
             moverScrollGraficosAlFinal();
         }
-
     }, 100);
 }
 
@@ -4638,6 +4537,7 @@ function moverScrollGraficosAlFinal() {
     });
 }
 
+// 3 Graficos de Alta - Traslado - Migración
 function crearGraficoHoyProduccionAltas(data) {
     const labels = [];
     const porcentajes = [];
