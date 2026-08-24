@@ -4789,8 +4789,8 @@ function crearGraficoHoyProduccionAltas(data) {
                 pointBackgroundColor: "#1d2a57",
                 pointBorderColor: "#1d2a57",
                 datalabels: {
-                    anchor: context => context.dataIndex % 2 === 0 ? "top" : "bottom",
-                    align: context => context.dataIndex % 2 === 0 ? "end" : "start",
+                    anchor: "top" ,
+                    align: "end" ,
                     offset: 6,
                     color: "#1d2a57",
                     font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
@@ -4904,8 +4904,8 @@ function crearGraficoHoyRGUAltas(data) {
                 pointBackgroundColor: "#1d2a57",
                 pointBorderColor: "#1d2a57",
                 datalabels: {
-                    anchor: context => context.dataIndex % 2 === 0 ? "top" : "bottom",
-                    align: context => context.dataIndex % 2 === 0 ? "end" : "start",
+                    anchor: "top" ,
+                    align: "end" ,
                     offset: 6,
                     color: "#1d2a57",
                     font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
@@ -5010,8 +5010,8 @@ function crearGraficoHoyDuracionAltas(data) {
                 pointBackgroundColor: "#1d2a57",
                 pointBorderColor: "#1d2a57",
                 datalabels: {
-                    anchor: context => context.dataIndex % 2 === 0 ? "top" : "bottom",
-                    align: context => context.dataIndex % 2 === 0 ? "end" : "start",
+                    anchor: "top" ,
+                    align: "end" ,
                     offset: 6,
                     color: "#1d2a57",
                     font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
