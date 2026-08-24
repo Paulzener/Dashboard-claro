@@ -3390,7 +3390,7 @@ function cambiarVista(vista, btnElement) {
     }
 }
 
-function obtenerDatosUltimosDias(data, cantidadDias = 7) {
+function obtenerDatosUltimosDias(data, cantidadDias = 30) {
 
     const hoy = new Date();
 
@@ -4330,12 +4330,6 @@ function crearGraficoHoyRGU(data) {
             });
             promedio = suma / listaTecnicos.length;
 
-            // Cambia la fecha de diagnóstico al 12 de agosto
-            if (key === '2026-08-12') {
-                console.log(`[JS Debug 12/08] Suma RGU: ${suma} | Cant. Técnicos: ${listaTecnicos.length}`);
-                console.log("Lista de técnicos contados en JS:", listaTecnicos.sort());
-            }
-
         }
 
         const diasSemana = ["Dom", "Lun", "Mar", "Miér", "Jue", "Vie", "Sáb"];
@@ -4345,7 +4339,7 @@ function crearGraficoHoyRGU(data) {
             `${day}/${month}`
         ]);
 
-        valores.push(Number(promedio.toFixed(2)));
+        valores.push(Number(promedio.toFixed(1)));
     }
 
     const canvas = document.getElementById("chartHoy2");
@@ -4747,32 +4741,46 @@ function crearGraficoHoyProduccionAltas(data) {
 function crearGraficoHoyRGUAltas(data) {
     const labels = [];
     const valores = [];
+
+    // 1. Fijar medianoche local para evitar saltos de zona horaria
     const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
 
     for (let i = 29; i >= 0; i--) {
         const fecha = new Date(hoy);
         fecha.setDate(fecha.getDate() - i);
-        fecha.setHours(0, 0, 0, 0);
 
-        const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+        // Clave YYYY-MM-DD
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        const key = `${year}-${month}-${day}`;
+
         const tecnicos = {};
 
         data.forEach(item => {
+            // Filtro por Tipo de Actividad
             const tipo = (item.Tipo_de_Actividad || "").toString().trim().toLowerCase();
             if (tipo !== "alta" && tipo !== "alta traslado" && tipo !== "migración" && tipo !== "migracion") return;
 
-            const f = obtenerFechaObjeto(item);
-            if (!f) return;
+            // Extracción segura de fecha YYYY-MM-DD
+            const fechaRaw = item.Origen || item.Fecha;
+            if (!fechaRaw) return;
 
-            const itemKey = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+            const rawStr = String(fechaRaw).trim();
+            const itemKey = rawStr.length >= 10 ? rawStr.substring(0, 10) : "";
             if (itemKey !== key) return;
 
+            // Filtro de Estado (coincide con el WHERE de SQL)
             const estado = (item.Estado || "").toString().trim().toLowerCase();
-            if (estado !== "completado") return;
+            if (estado !== "completado" && estado !== "no realizada") return;
 
-            const tecnico = (item.Tecnico || "").toString().trim();
+            // Normalización de Técnico: Mayúsculas y sin acentos
+            let tecnico = (item.Tecnico || "").toString().trim().toUpperCase();
             if (!tecnico) return;
+            tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+            // Parsear RGU
             let rgu = item.RGU ?? 0;
             if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
             rgu = Number(rgu) || 0;
@@ -4795,7 +4803,7 @@ function crearGraficoHoyRGUAltas(data) {
 
         labels.push([
             diasSemana[fecha.getDay()],
-            `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}`
+            `${day}/${month}`
         ]);
         valores.push(promedio);
     }
@@ -4828,7 +4836,7 @@ function crearGraficoHoyRGUAltas(data) {
                     offset: 6,
                     color: "#1d2a57",
                     font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
-                    formatter: value => value.toString().replace(".", ",")
+                    formatter: value => value !== null && value !== undefined ? value.toString().replace(".", ",") : ""
                 }
             }]
         },
