@@ -785,3 +785,59 @@ tr:hover {
 .chart-scroll::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+/* ==========================================
+   GRÁFICOS DIARIOS (GENÉRICO PARA TODAS LAS VISTAS)
+========================================== */
+
+.grid-graficos-diarios {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+.card-grafico {
+    position: relative;
+    width: 100%;
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 20px 20px 10px 20px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.card-grafico h2 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: #172554;
+    text-align: center;
+}
+
+.card-grafico p {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: #64748b;
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 1000px) {
+    .grid-graficos-diarios {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .grid-graficos-diarios {
+        gap: 15px;
+    }
+
+    .card-grafico {
+        padding: 16px;
+    }
+}

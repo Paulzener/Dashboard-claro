@@ -281,31 +281,47 @@
             </div>
 
         </div>
+        
         <!-- Vista Diarios (Altas) -->
-        <div id="viewAltas" class="tab-view hidden " style="padding-top: 2rem;">
+        <div id="viewAltas" class="tab-view hidden" style="padding-top: 2rem;">
+
             <h1>Indicadores Diarios Alta / Alta Traslado / Migración</h1>
-            <!-- Gráfico 1: % Efectividad -->
-            <div class="chart-container">
-                <h3>Efectividad (%) - Últimos 30 días</h3>
-                <div class="chart-scroll">
-                    <canvas id="chartHoyAltas1"></canvas>
-                </div>
-            </div>
 
-            <!-- Gráfico 2: Promedio RGU -->
-            <div class="chart-container">
-                <h3>Promedio RGU por Técnico</h3>
-                <div class="chart-scroll">
-                    <canvas id="chartHoyAltas2"></canvas>
-                </div>
-            </div>
+            <div class="grid-graficos-diarios">
 
-            <!-- Gráfico 3: Duración Promedio -->
-            <div class="chart-container">
-                <h3>Duración Promedio (HH:MM)</h3>
-                <div class="chart-scroll">
-                    <canvas id="chartHoyAltas3"></canvas>
+                <div class="card-grafico">
+                    <h2>EFECTIVIDAD %</h2>
+                    <p>Últimos 30 días</p>
+
+                    <div class="chart-scroll">
+                        <div class="chart-content">
+                            <canvas id="chartHoyAltas1"></canvas>
+                        </div>
+                    </div>
                 </div>
+
+                <div class="card-grafico">
+                    <h2>PROMEDIO RGU POR TÉCNICO</h2>
+                    <p>Últimos 30 días</p>
+
+                    <div class="chart-scroll">
+                        <div class="chart-content">
+                            <canvas id="chartHoyAltas2"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-grafico">
+                    <h2>DURACIÓN PROMEDIO (HH:MM)</h2>
+                    <p>Últimos 30 días</p>
+
+                    <div class="chart-scroll">
+                        <div class="chart-content">
+                            <canvas id="chartHoyAltas3"></canvas>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         </div>

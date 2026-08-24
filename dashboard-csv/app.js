@@ -55,7 +55,6 @@ if (typeof ChartDataLabels !== "undefined") {
     Chart.register(ChartDataLabels);
 }
 
-
 // ==========================================
 // INICIO
 // ==========================================
@@ -100,7 +99,6 @@ document.addEventListener("DOMContentLoaded", () => {
         toggleFiltersBtn.classList.toggle("active");
     });
 });
-
 
 // ==========================================
 // CARGAR DATOS DESDE API
@@ -214,7 +212,6 @@ function cargarDatosDesdeAPI() {
             );
         });
 }
-
 
 // ==========================================
 // MULTISELECT
@@ -339,7 +336,6 @@ function inicializarMultiselects() {
     });
 }
 
-
 // ==========================================
 // ACTUALIZAR SELECCIÓN
 // ==========================================
@@ -358,7 +354,6 @@ function actualizarSeleccionDesdeDOM(container, filterKey) {
             String(input.value).trim()
         );
 }
-
 
 // ==========================================
 // POBLAR MULTISELECT
@@ -466,7 +461,6 @@ function poblarMultiselect(
     );
 }
 
-
 // ==========================================
 // ESCAPAR HTML
 // ==========================================
@@ -480,7 +474,6 @@ function escapeHTML(value) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
-
 
 // ==========================================
 // TEXTO DEL FILTRO
@@ -577,7 +570,6 @@ function actualizarTextoTrigger(
         `${marcados} seleccionados`;
 }
 
-
 // ==========================================
 // FECHAS
 // ==========================================
@@ -660,7 +652,6 @@ function formatearFecha(item) {
     return `${dia}/${mes}/${anio}`;
 }
 
-
 // ==========================================
 // HORAS
 // ==========================================
@@ -707,7 +698,6 @@ function convertirAHoraMinutos(valor) {
     return h * 60 + m;
 }
 
-
 // ==========================================
 // DIFERENCIA HORAS
 // ==========================================
@@ -752,7 +742,6 @@ function calcularDiferenciaMinutos(
     return minFin - minInicio;
 }
 
-
 // ==========================================
 // MOSTRAR SECCIONES
 // ==========================================
@@ -775,7 +764,6 @@ function mostrarSecciones() {
         .getElementById("tableSection")
         ?.classList.remove("hidden");
 }
-
 
 // ==========================================
 // POBLAR FILTROS
@@ -1003,7 +991,6 @@ function aplicarFiltros() {
     actualizarDashboard();
 }
 
-
 // ==========================================
 // APLICAR TODOS
 // ==========================================
@@ -1041,7 +1028,6 @@ function aplicarTodosLosFiltros() {
 
     aplicarFiltros();
 }
-
 
 // ==========================================
 // LIMPIAR FILTROS
@@ -1114,7 +1100,6 @@ function limpiarFiltros() {
     aplicarFiltros();
 }
 
-
 // ==========================================
 // DASHBOARD
 // ==========================================
@@ -1148,7 +1133,6 @@ function actualizarDashboard() {
     }
 }
 
-
 // ==========================================
 // OBTENER ESTADOS
 // ==========================================
@@ -1166,7 +1150,6 @@ function obtenerCompletadas() {
     }).length;
 }
 
-
 function obtenerNoRealizadas() {
 
     return filteredData.filter(item => {
@@ -1179,7 +1162,6 @@ function obtenerNoRealizadas() {
 
     }).length;
 }
-
 
 // ==========================================
 // KPIS
@@ -1311,7 +1293,6 @@ function actualizarKPIs() {
     }
 }
 
-
 // ==========================================
 // TABLA
 // ==========================================
@@ -1420,7 +1401,6 @@ function renderizarTabla() {
     }
 }
 
-
 // ==========================================
 // GRÁFICOS
 // ==========================================
@@ -1433,7 +1413,6 @@ function actualizarGraficos() {
 
     crearGraficoDuracion();
 }
-
 
 // ==========================================
 // PRODUCCIÓN
@@ -2855,8 +2834,6 @@ function crearGraficoRGU() {
         );
 }
 
-
-
 // ==========================================
 // DURACIÓN PROMEDIO
 // ==========================================
@@ -3294,7 +3271,6 @@ function crearGraficoDuracion() {
         );
 }
 
-
 // ==========================================
 // CONVERTIR MINUTOS A HH:MM
 // ==========================================
@@ -3318,7 +3294,6 @@ function convertirMinutosHHMM(minutos) {
         String(minutosRestantes).padStart(2, "0")
     );
 }
-
 
 // ==========================================
 // CAMBIO DE VISTA
@@ -3414,9 +3389,6 @@ function cambiarVista(vista, btnElement) {
         }, 50);
     }
 }
-
-
-
 
 function obtenerDatosUltimosDias(data, cantidadDias = 7) {
 
