@@ -1506,8 +1506,6 @@ function actualizarKPIsHoy(data) {
     
     let completadas = 0;
     let noRealizadas = 0;
-    let sumaDuracionTotal = 0;
-    let cantidadDuracionTotal = 0;
 
     const hoy = new Date();
     const fechaLimite = new Date(hoy);
@@ -1515,6 +1513,7 @@ function actualizarKPIsHoy(data) {
     fechaLimite.setHours(0, 0, 0, 0);
 
     const rguPorDia = {};
+    const duracionPorDia = {};
 
     datos.forEach(item => {
         const f = typeof obtenerFechaObjeto === "function" 
@@ -1544,24 +1543,33 @@ function actualizarKPIsHoy(data) {
             }
         }
 
+        // =====================================================
+        // DURACIÓN — agrupada por día (igual que el gráfico)
+        // =====================================================
         if (esCompletado) {
             const inicio = obtenerProp(item, "Inicio", "Hora_Inicio", "inicio");
             const fin = obtenerProp(item, "Fin", "Hora_Fin", "fin");
             const diferencia = obtenerDiferenciaTiempo(inicio, fin);
 
             if (diferencia !== null && !isNaN(diferencia) && diferencia >= 0 && diferencia < 720) {
-                sumaDuracionTotal += diferencia;
-                cantidadDuracionTotal++;
+                if (!duracionPorDia[itemKey]) {
+                    duracionPorDia[itemKey] = { suma: 0, cantidad: 0 };
+                }
+                duracionPorDia[itemKey].suma += diferencia;
+                duracionPorDia[itemKey].cantidad++;
             }
         }
     });
 
     const valoresRGU = [];
+    const valoresDuracion = [];
+
     for (let i = 29; i >= 0; i--) {
         const fecha = new Date(hoy);
         fecha.setDate(fecha.getDate() - i);
         const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
 
+        // RGU del día
         const tecnicosRGU = rguPorDia[key] || {};
         const listaTecnicos = Object.keys(tecnicosRGU);
         let promedioRGUDia = 0;
@@ -1571,16 +1579,24 @@ function actualizarKPIsHoy(data) {
             promedioRGUDia = Number((sumaRGU / listaTecnicos.length).toFixed(1));
         }
         valoresRGU.push(promedioRGUDia);
+
+        // Duración del día (0 si no hubo actividad completada ese día)
+        const diaDuracion = duracionPorDia[key];
+        const promedioDuracionDia = diaDuracion && diaDuracion.cantidad > 0
+            ? diaDuracion.suma / diaDuracion.cantidad
+            : 0;
+        valoresDuracion.push(promedioDuracionDia);
     }
 
     const total = completadas + noRealizadas;
     const efectividad = total > 0 ? (completadas / total) * 100 : 0;
+
     const sumaRGU30 = valoresRGU.reduce((acc, val) => acc + val, 0);
     const rguPromedio = sumaRGU30 / 30;
 
-    const duracionPromedio = cantidadDuracionTotal > 0 
-        ? Math.round(sumaDuracionTotal / cantidadDuracionTotal) 
-        : 0;
+    // Promedio de duración sobre los 30 días completos (cuenta los 0)
+    const sumaDuracion30 = valoresDuracion.reduce((acc, val) => acc + val, 0);
+    const duracionPromedio = Math.round(sumaDuracion30 / 30);
 
     const horas = Math.floor(duracionPromedio / 60);
     const minutos = duracionPromedio % 60;
