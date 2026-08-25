@@ -4140,69 +4140,58 @@ function crearGraficoHoyProduccion(data) {
 }
 
 function crearGraficoHoyRGU(data) {
-    if (!data || data.length === 0) return;
+    const labels = [];
+    const valores = [];
+    const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
     // Helper para extraer YYYY-MM-DD sin desfase por zona horaria/UTC
     const obtenerFechaKey = (item) => {
-        const raw = item.Fecha || item.Origen; // Usa primero el campo por el que filtraste
+        const raw = item.Fecha || item.Origen;
         if (!raw) return null;
-
-        // Si es string ISO o con hora, tomamos solo la parte de la fecha
         const str = String(raw).trim();
         const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
         return match ? match[1] : null;
     };
 
-    // 1. Extraer claves válidas
-    const fechasValidas = new Set();
-    data.forEach(item => {
-        const key = obtenerFechaKey(item);
-        if (key) fechasValidas.add(key);
-    });
+    // 1. Fijar medianoche local para construir los últimos 30 días
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
 
-    if (fechasValidas.size === 0) return;
+    for (let i = 29; i >= 0; i--) {
+        const fecha = new Date(hoy);
+        fecha.setDate(fecha.getDate() - i);
 
-    // 2. Determinar el rango de fechas
-    const fechasOrdenadas = Array.from(fechasValidas).sort();
-    const [minY, minM, minD] = fechasOrdenadas[0].split('-').map(Number);
-    const [maxY, maxM, maxD] = fechasOrdenadas[fechasOrdenadas.length - 1].split('-').map(Number);
-
-    const fechaInicio = new Date(minY, minM - 1, minD);
-    const fechaFin = new Date(maxY, maxM - 1, maxD);
-
-    const labels = [];
-    const valores = [];
-    const diasSemana = ["Dom", "Lun", "Mar", "Miér", "Jue", "Vie", "Sáb"];
-
-    // 3. Recorrer día a día
-    let cursor = new Date(fechaInicio);
-
-    while (cursor <= fechaFin) {
-        const year = cursor.getFullYear();
-        const month = String(cursor.getMonth() + 1).padStart(2, '0');
-        const day = String(cursor.getDate()).padStart(2, '0');
+        // Clave YYYY-MM-DD
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
         const key = `${year}-${month}-${day}`;
 
         const tecnicos = {};
 
-        data.forEach(item => {
-            const itemKey = obtenerFechaKey(item);
-            if (itemKey !== key) return;
+        if (Array.isArray(data)) {
+            data.forEach(item => {
+                const itemKey = obtenerFechaKey(item);
+                if (itemKey !== key) return;
 
-            const estado = (item.Estado || "").toString().trim().toLowerCase();
-            if (estado !== "completado" && estado !== "no realizada") return;
+                // Filtro de Estado
+                const estado = (item.Estado || "").toString().trim().toLowerCase();
+                if (estado !== "completado" && estado !== "no realizada") return;
 
-            let tecnico = (item.Tecnico || "").toString().trim().toUpperCase();
-            if (!tecnico) return;
-            tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                // Normalización de Técnico
+                let tecnico = (item.Tecnico || "").toString().trim().toUpperCase();
+                if (!tecnico) return;
+                tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-            let rgu = item.RGU ?? 0;
-            if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
-            rgu = Number(rgu) || 0;
+                // Parsear RGU
+                let rgu = item.RGU ?? 0;
+                if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
+                rgu = Number(rgu) || 0;
 
-            if (!(tecnico in tecnicos)) tecnicos[tecnico] = 0;
-            tecnicos[tecnico] += rgu;
-        });
+                if (!(tecnico in tecnicos)) tecnicos[tecnico] = 0;
+                tecnicos[tecnico] += rgu;
+            });
+        }
 
         const listaTecnicos = Object.keys(tecnicos);
         let promedio = 0;
@@ -4213,13 +4202,11 @@ function crearGraficoHoyRGU(data) {
             promedio = suma / listaTecnicos.length;
         }
 
-        labels.push([diasSemana[cursor.getDay()], `${day}/${month}`]);
+        labels.push([diasSemana[fecha.getDay()], `${day}/${month}`]);
         valores.push(Number(promedio.toFixed(1)));
-
-        cursor.setDate(cursor.getDate() + 1);
     }
 
-    // 4. Renderizado Chart.js
+    // 2. Renderizado Chart.js
     const canvas = document.getElementById("chartHoy2");
     if (!canvas) return;
 
