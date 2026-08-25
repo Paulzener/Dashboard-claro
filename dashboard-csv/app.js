@@ -1107,9 +1107,9 @@ function actualizarDashboard() {
     // Si estamos en HISTÓRICO
     if (vistaActual === "historico") {
 
-        actualizarKPIs();
+        actualizarKPIsHistorico(filteredData);
 
-        actualizarGraficos();
+        actualizarGraficos(filteredData);
 
         return;
     }
@@ -1157,6 +1157,39 @@ function obtenerNoRealizadas() {
 // KPIS
 // ==========================================
 
+// Helper interno para calcular diferencia sin romper si cambia el nombre de la función
+function obtenerDiferenciaTiempo(inicio, fin) {
+    if (typeof calcularDiferenciaMinutos === "function") {
+        return calcularDiferenciaMinutos(inicio, fin);
+    }
+    if (typeof obtenerMinutosDiferencia === "function") {
+        return obtenerMinutosDiferencia(inicio, fin);
+    }
+    return null;
+}
+// =====================================================
+// HELPER: OBTENER PROPIEDAD TOLERANTE A NOMBRES Y MAYÚSCULAS
+// =====================================================
+function obtenerProp(item, ...propiedades) {
+    if (!item || typeof item !== "object") return null;
+    
+    for (const prop of propiedades) {
+        // Búsqueda directa
+        if (item[prop] !== undefined && item[prop] !== null) {
+            return item[prop];
+        }
+        // Búsqueda insensible a mayúsculas/minúsculas
+        const propLower = String(prop).toLowerCase();
+        const llaveEncontrada = Object.keys(item).find(k => k.toLowerCase() === propLower);
+        if (llaveEncontrada && item[llaveEncontrada] !== undefined && item[llaveEncontrada] !== null) {
+            return item[llaveEncontrada];
+        }
+    }
+    return null;
+}
+// =====================================================
+// 1. ACTUALIZAR KPIS GENERAL
+// =====================================================
 function actualizarKPIs(data) {
 
     const datos = Array.isArray(data)
@@ -1465,533 +1498,357 @@ function actualizarKPIs(data) {
 
 }
 
-function actualizarKPIsAltas(data) {
-
+// =====================================================
+// 2. ACTUALIZAR KPIS HOY (ÚLTIMOS 30 DÍAS)
+// =====================================================
+function actualizarKPIsHoy(data) {
     const datos = Array.isArray(data) ? data : [];
-
-    // =====================================================
-    // CONTADORES
-    // =====================================================
-
+    
     let completadas = 0;
     let noRealizadas = 0;
+    let sumaDuracionTotal = 0;
+    let cantidadDuracionTotal = 0;
 
-    // =====================================================
-    // DURACIÓN
-    // =====================================================
+    const hoy = new Date();
+    const fechaLimite = new Date(hoy);
+    fechaLimite.setDate(fechaLimite.getDate() - 29);
+    fechaLimite.setHours(0, 0, 0, 0);
 
+    const rguPorDia = {};
+
+    datos.forEach(item => {
+        const f = typeof obtenerFechaObjeto === "function" 
+            ? obtenerFechaObjeto(item) 
+            : (item.Fecha ? new Date(item.Fecha) : null);
+            
+        if (!f || f < fechaLimite) return;
+
+        const estadoRaw = String(obtenerProp(item, "Estado", "estado") ?? "").trim().toLowerCase();
+        const esCompletado = estadoRaw === "completado" || estadoRaw === "completada";
+        const esNoRealizada = estadoRaw === "no realizada" || estadoRaw === "no realizado";
+
+        if (esCompletado) completadas++;
+        if (esNoRealizada) noRealizadas++;
+
+        const itemKey = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
+
+        if (esCompletado || esNoRealizada) {
+            let tecnico = String(obtenerProp(item, "Tecnico", "tecnico") ?? "").trim().toUpperCase();
+            if (tecnico) {
+                tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const rguVal = obtenerProp(item, "RGU", "rgu") ?? 0;
+                const rguNum = Number(String(rguVal).replace(",", ".")) || 0;
+
+                rguPorDia[itemKey] = rguPorDia[itemKey] || {};
+                rguPorDia[itemKey][tecnico] = (rguPorDia[itemKey][tecnico] || 0) + rguNum;
+            }
+        }
+
+        if (esCompletado) {
+            const inicio = obtenerProp(item, "Inicio", "Hora_Inicio", "inicio");
+            const fin = obtenerProp(item, "Fin", "Hora_Fin", "fin");
+            const diferencia = obtenerDiferenciaTiempo(inicio, fin);
+
+            if (diferencia !== null && !isNaN(diferencia) && diferencia >= 0 && diferencia < 720) {
+                sumaDuracionTotal += diferencia;
+                cantidadDuracionTotal++;
+            }
+        }
+    });
+
+    const valoresRGU = [];
+    for (let i = 29; i >= 0; i--) {
+        const fecha = new Date(hoy);
+        fecha.setDate(fecha.getDate() - i);
+        const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
+
+        const tecnicosRGU = rguPorDia[key] || {};
+        const listaTecnicos = Object.keys(tecnicosRGU);
+        let promedioRGUDia = 0;
+
+        if (listaTecnicos.length > 0) {
+            const sumaRGU = listaTecnicos.reduce((acc, tec) => acc + tecnicosRGU[tec], 0);
+            promedioRGUDia = Number((sumaRGU / listaTecnicos.length).toFixed(1));
+        }
+        valoresRGU.push(promedioRGUDia);
+    }
+
+    const total = completadas + noRealizadas;
+    const efectividad = total > 0 ? (completadas / total) * 100 : 0;
+    const sumaRGU30 = valoresRGU.reduce((acc, val) => acc + val, 0);
+    const rguPromedio = sumaRGU30 / 30;
+
+    const duracionPromedio = cantidadDuracionTotal > 0 
+        ? Math.round(sumaDuracionTotal / cantidadDuracionTotal) 
+        : 0;
+
+    const horas = Math.floor(duracionPromedio / 60);
+    const minutos = duracionPromedio % 60;
+    const duracionFormateada = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+
+    const setDOM = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
+
+    setDOM("totalOrdenes", total.toLocaleString("es-CL"));
+    setDOM("completadas", completadas.toLocaleString("es-CL"));
+    setDOM("noRealizadas", noRealizadas.toLocaleString("es-CL"));
+    setDOM("pctCompletadas", total > 0 ? (completadas / total * 100).toFixed(1) + "%" : "0%");
+    setDOM("efectividad", efectividad.toFixed(1) + "%");
+    setDOM("rguTotal", rguPromedio.toFixed(1).replace(".", ","));
+    setDOM("duracionPromedio", duracionFormateada);
+}
+
+// =====================================================
+// 3. ACTUALIZAR KPIS ALTAS (RESTAURADA)
+// =====================================================
+function actualizarKPIsAltas(data) {
+    const datos = Array.isArray(data) ? data : [];
+    let completadas = 0;
+    let noRealizadas = 0;
     let duracionTotalSum = 0;
     let duracionConteo = 0;
 
-    // =====================================================
-    // RGU DE LOS 30 DÍAS
-    // EXACTAMENTE IGUAL AL GRÁFICO
-    // =====================================================
-
     const valoresRGU = [];
-
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
     for (let i = 29; i >= 0; i--) {
-
         const fecha = new Date(hoy);
         fecha.setDate(fecha.getDate() - i);
-
         const year = fecha.getFullYear();
-        const month = String(
-            fecha.getMonth() + 1
-        ).padStart(2, "0");
+        const month = String(fecha.getMonth() + 1).padStart(2, "0");
+        const day = String(fecha.getDate()).padStart(2, "0");
+        const key = `${year}-${month}-${day}`;
 
-        const day = String(
-            fecha.getDate()
-        ).padStart(2, "0");
-
-        const key =
-            `${year}-${month}-${day}`;
-
-        // Técnicos del día
         const tecnicos = {};
 
-        // =================================================
-        // RECORRER DATOS
-        // =================================================
-
         datos.forEach(item => {
+            const tipo = String(item.Tipo_de_Actividad ?? "").trim().toLowerCase();
+            if (tipo !== "alta" && tipo !== "alta traslado" && tipo !== "migración" && tipo !== "migracion") return;
 
-            // ---------------------------------------------
-            // TIPO DE ACTIVIDAD
-            // ---------------------------------------------
-
-            const tipo =
-                String(
-                    item.Tipo_de_Actividad ?? ""
-                )
-                .trim()
-                .toLowerCase();
-
-            if (
-                tipo !== "alta" &&
-                tipo !== "alta traslado" &&
-                tipo !== "migración" &&
-                tipo !== "migracion"
-            ) {
-                return;
-            }
-
-            // ---------------------------------------------
-            // FECHA
-            // IGUAL AL GRÁFICO
-            // ---------------------------------------------
-
-            const fechaRaw =
-                item.Origen || item.Fecha;
-
+            const fechaRaw = item.Origen || item.Fecha;
             if (!fechaRaw) return;
 
-            const rawStr =
-                String(fechaRaw).trim();
-
-            const itemKey =
-                rawStr.length >= 10
-                    ? rawStr.substring(0, 10)
-                    : "";
-
+            const rawStr = String(fechaRaw).trim();
+            const itemKey = rawStr.length >= 10 ? rawStr.substring(0, 10) : "";
             if (itemKey !== key) return;
 
-            // ---------------------------------------------
-            // ESTADO
-            // ---------------------------------------------
-
-            const estado =
-                String(
-                    item.Estado ?? ""
-                )
-                .trim()
-                .toLowerCase();
-
-            // Para RGU: ambos estados
-            if (
-                estado !== "completado" &&
-                estado !== "no realizada"
-            ) {
-                return;
-            }
-
-            // ---------------------------------------------
-            // RGU
-            // ---------------------------------------------
-
-            let rgu =
-                item.RGU ?? 0;
-
-            if (typeof rgu === "string") {
-
-                rgu =
-                    rgu
-                        .replace(",", ".")
-                        .trim();
-
-            }
-
-            rgu =
-                Number(rgu) || 0;
-
-            // ---------------------------------------------
-            // TÉCNICO
-            // ---------------------------------------------
-
-            let tecnico =
-                String(
-                    item.Tecnico ?? ""
-                )
-                .trim()
-                .toUpperCase();
-
-            if (!tecnico) return;
-
-            tecnico =
-                tecnico
-                    .normalize("NFD")
-                    .replace(
-                        /[\u0300-\u036f]/g,
-                        ""
-                    );
-
-            // ---------------------------------------------
-            // SUMAR RGU DEL TÉCNICO
-            // ---------------------------------------------
-
-            if (!tecnicos[tecnico]) {
-                tecnicos[tecnico] = 0;
-            }
-
-            tecnicos[tecnico] += rgu;
-
-        });
-
-
-        // =================================================
-        // PROMEDIO RGU DEL DÍA
-        // EXACTAMENTE IGUAL AL GRÁFICO
-        // =================================================
-
-        const listaTecnicos =
-            Object.keys(tecnicos);
-
-        let promedioDia = 0;
-
-        if (listaTecnicos.length > 0) {
-
-            let suma = 0;
-
-            listaTecnicos.forEach(tecnico => {
-
-                suma +=
-                    tecnicos[tecnico];
-
-            });
-
-            promedioDia =
-                suma /
-                listaTecnicos.length;
-        }
-
-        // El gráfico hace toFixed(1)
-        promedioDia =
-            Number(
-                promedioDia.toFixed(1)
-            );
-
-        // Guardar el valor del día
-        valoresRGU.push(promedioDia);
-
-
-        // =================================================
-        // CONTADORES Y DURACIÓN
-        // SOLO UNA VEZ POR REGISTRO DEL DÍA
-        // =================================================
-
-        datos.forEach(item => {
-
-            const tipo =
-                String(
-                    item.Tipo_de_Actividad ?? ""
-                )
-                .trim()
-                .toLowerCase();
-
-            if (
-                tipo !== "alta" &&
-                tipo !== "alta traslado" &&
-                tipo !== "migración" &&
-                tipo !== "migracion"
-            ) {
-                return;
-            }
-
-            const fechaRaw =
-                item.Origen || item.Fecha;
-
-            if (!fechaRaw) return;
-
-            const rawStr =
-                String(fechaRaw).trim();
-
-            const itemKey =
-                rawStr.length >= 10
-                    ? rawStr.substring(0, 10)
-                    : "";
-
-            if (itemKey !== key) return;
-
-            const estado =
-                String(
-                    item.Estado ?? ""
-                )
-                .trim()
-                .toLowerCase();
-
-
-            // ---------------------------------------------
-            // COMPLETADAS
-            // ---------------------------------------------
+            const estado = String(item.Estado ?? "").trim().toLowerCase();
 
             if (estado === "completado") {
-
                 completadas++;
+                const inicio = item.Inicio ?? item.Hora_Inicio;
+                const fin = item.Fin ?? item.Hora_Fin;
+                const diferencia = obtenerDiferenciaTiempo(inicio, fin);
 
-                // -----------------------------------------
-                // DURACIÓN
-                // -----------------------------------------
-
-                const inicio =
-                    item.Inicio ??
-                    item.Hora_Inicio;
-
-                const fin =
-                    item.Fin ??
-                    item.Hora_Fin;
-
-                const diferencia =
-                    calcularDiferenciaMinutos(
-                        inicio,
-                        fin
-                    );
-
-                if (
-                    diferencia !== null &&
-                    diferencia >= 0 &&
-                    diferencia < 720
-                ) {
-
-                    duracionTotalSum +=
-                        diferencia;
-
+                if (diferencia !== null && !isNaN(diferencia) && diferencia >= 0 && diferencia < 720) {
+                    duracionTotalSum += diferencia;
                     duracionConteo++;
-
                 }
-
-            }
-
-
-            // ---------------------------------------------
-            // NO REALIZADAS
-            // ---------------------------------------------
-
-            if (
-                estado === "no realizada"
-            ) {
-
+            } else if (estado === "no realizada") {
                 noRealizadas++;
-
             }
 
+            if (estado !== "completado" && estado !== "no realizada") return;
+
+            let rgu = item.RGU ?? 0;
+            if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
+            rgu = Number(rgu) || 0;
+
+            let tecnico = String(item.Tecnico ?? "").trim().toUpperCase();
+            if (!tecnico) return;
+            tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+            if (!tecnicos[tecnico]) tecnicos[tecnico] = 0;
+            tecnicos[tecnico] += rgu;
         });
 
+        const listaTecnicos = Object.keys(tecnicos);
+        let promedioDia = 0;
+        if (listaTecnicos.length > 0) {
+            let suma = 0;
+            listaTecnicos.forEach(tecnico => { suma += tecnicos[tecnico]; });
+            promedioDia = suma / listaTecnicos.length;
+        }
+        valoresRGU.push(Number(promedioDia.toFixed(1)));
     }
 
-
-    // =====================================================
-    // PROMEDIO DE LOS 30 VALORES DEL GRÁFICO
-    // =====================================================
-
-    let rguPromedio = 0;
-
-    if (valoresRGU.length > 0) {
-
-        const sumaRGU =
-            valoresRGU.reduce(
-                (acumulado, valor) =>
-                    acumulado + valor,
-                0
-            );
-
-        rguPromedio =
-            sumaRGU /
-            valoresRGU.length;
-    }
-
-
-    // =====================================================
-    // EFECTIVIDAD
-    // =====================================================
-
-    const totalEstados =
-        completadas +
-        noRealizadas;
-
-    const efectividad =
-        totalEstados > 0
-            ? (
-                completadas /
-                totalEstados
-            ) * 100
-            : 0;
-
-
-    // =====================================================
-    // DURACIÓN PROMEDIO
-    // =====================================================
-
-    const duracionPromedio =
-        duracionConteo > 0
-            ? Math.round(
-                duracionTotalSum /
-                duracionConteo
-            )
-            : 0;
-
-
-    const horas =
-        Math.floor(
-            duracionPromedio / 60
-        );
-
-    const minutos =
-        duracionPromedio % 60;
-
-
-    const duracionFormateada =
-        `${String(horas).padStart(2, "0")}:` +
-        `${String(minutos).padStart(2, "0")}`;
-
-
-    // =====================================================
-    // TOTAL
-    // =====================================================
-
-    const total =
-        completadas +
-        noRealizadas;
-
-
-    // =====================================================
-    // ACTUALIZAR KPIs
-    // =====================================================
-
-    const totalElem =
-        document.getElementById(
-            "totalOrdenes"
-        );
-
-    if (totalElem) {
-
-        totalElem.innerText =
-            total.toLocaleString("es-CL");
-
-    }
-
-
-    const completadasElem =
-        document.getElementById(
-            "completadas"
-        );
-
-    if (completadasElem) {
-
-        completadasElem.innerText =
-            completadas.toLocaleString("es-CL");
-
-    }
-
-
-    const noRealizadasElem =
-        document.getElementById(
-            "noRealizadas"
-        );
-
-    if (noRealizadasElem) {
-
-        noRealizadasElem.innerText =
-            noRealizadas.toLocaleString("es-CL");
-
-    }
-
-
-    const pctCompElem =
-        document.getElementById(
-            "pctCompletadas"
-        );
-
-    if (pctCompElem) {
-
-        pctCompElem.innerText =
-            total > 0
-                ? (
-                    completadas /
-                    total *
-                    100
-                ).toFixed(1) + "%"
-                : "0%";
-
-    }
-
-
-    const efectividadElem =
-        document.getElementById(
-            "efectividad"
-        );
-
-    if (efectividadElem) {
-
-        efectividadElem.innerText =
-            efectividad.toFixed(1) + "%";
-
-    }
-
-
-    const rguElem =
-        document.getElementById(
-            "rguTotal"
-        );
-
-    if (rguElem) {
-
-        rguElem.innerText =
-            rguPromedio
-                .toFixed(1)
-                .replace(".", ",");
-
-    }
-
-
-    const duracionElem =
-        document.getElementById(
-            "duracionPromedio"
-        );
-
-    if (duracionElem) {
-
-        duracionElem.innerText =
-            duracionFormateada;
-
-    }
-
-
-    // =====================================================
-    // DEBUG
-    // =====================================================
-
-    console.log(
-        "===== KPI ALTAS ====="
-    );
-
-    console.log(
-        "Total:",
-        total
-    );
-
-    console.log(
-        "Completadas:",
-        completadas
-    );
-
-    console.log(
-        "No realizadas:",
-        noRealizadas
-    );
-
-    console.log(
-        "Efectividad:",
-        efectividad.toFixed(1) + "%"
-    );
-
-    console.log(
-        "30 valores RGU:",
-        valoresRGU
-    );
-
-    console.log(
-        "Promedio RGU 30 días:",
-        rguPromedio.toFixed(1)
-    );
-
-    console.log(
-        "Duración:",
-        duracionFormateada
-    );
-
+    let rguPromedio = valoresRGU.length > 0 
+        ? valoresRGU.reduce((acc, val) => acc + val, 0) / valoresRGU.length 
+        : 0;
+
+    const total = completadas + noRealizadas;
+    const efectividad = total > 0 ? (completadas / total) * 100 : 0;
+    const duracionPromedio = duracionConteo > 0 ? Math.round(duracionTotalSum / duracionConteo) : 0;
+
+    const horas = Math.floor(duracionPromedio / 60);
+    const minutos = duracionPromedio % 60;
+    const duracionFormateada = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+
+    const setDOM = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
+
+    setDOM("totalOrdenes", total.toLocaleString("es-CL"));
+    setDOM("completadas", completadas.toLocaleString("es-CL"));
+    setDOM("noRealizadas", noRealizadas.toLocaleString("es-CL"));
+    setDOM("pctCompletadas", total > 0 ? (completadas / total * 100).toFixed(1) + "%" : "0%");
+    setDOM("efectividad", efectividad.toFixed(1) + "%");
+    setDOM("rguTotal", rguPromedio.toFixed(1).replace(".", ","));
+    setDOM("duracionPromedio", duracionFormateada);
+}
+
+// =====================================================
+// 4. ACTUALIZAR KPIS HISTÓRICO (SIGUIENDO LA LÓGICA DEL GRÁFICO)
+// =====================================================
+function actualizarKPIsHistorico(data) {
+    const datos = Array.isArray(data) ? data : [];
+    const listaMeses = (typeof ordenMeses !== "undefined" && Array.isArray(ordenMeses)) 
+        ? ordenMeses 
+        : MESES_DEFAULT;
+
+    let completadas = 0;
+    let noRealizadas = 0;
+
+    const datosRGU = {};
+    const datosDiariosDuracion = {};
+
+    // NIVEL 1: Agrupación diaria por técnico
+    datos.forEach(item => {
+        const fecha = typeof obtenerFechaObjeto === "function" 
+            ? obtenerFechaObjeto(item) 
+            : (item.Fecha ? new Date(item.Fecha) : null);
+
+        if (!fecha || isNaN(fecha.getTime())) return;
+
+        const estado = String(item.Estado ?? "").trim().toLowerCase();
+
+        if (estado === "completado") completadas++;
+        if (estado === "no realizada") noRealizadas++;
+
+        if (estado !== "completado" && estado !== "no realizada") return;
+
+        const mes = listaMeses[fecha.getMonth()];
+        const tecnico = (item.Tecnico === null || item.Tecnico === undefined)
+            ? "__TECNICO_NULL__"
+            : String(item.Tecnico);
+
+        if (!tecnico) return;
+
+        const dia = fecha.getFullYear() + "-" +
+            String(fecha.getMonth() + 1).padStart(2, "0") + "-" +
+            String(fecha.getDate()).padStart(2, "0");
+
+        // RGU
+        let rgu = item.RGU ?? 0;
+        if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
+        const rguNum = Number(rgu) || 0;
+
+        datosRGU[mes] = datosRGU[mes] || {};
+        datosRGU[mes][tecnico] = datosRGU[mes][tecnico] || {};
+        datosRGU[mes][tecnico][dia] = (datosRGU[mes][tecnico][dia] || 0) + rguNum;
+
+        // DURACIÓN (Lógica exacta del gráfico)
+        if (estado === "completado") {
+            const inicio = item.Inicio ?? item.Hora_Inicio;
+            const fin = item.Fin ?? item.Hora_Fin;
+
+            let diferencia = typeof calcularDiferenciaMinutos === "function" 
+                ? calcularDiferenciaMinutos(inicio, fin) 
+                : obtenerDiferenciaTiempo(inicio, fin);
+
+            if (diferencia === null || diferencia < 0) {
+                diferencia = 0;
+            }
+
+            if (!datosDiariosDuracion[mes]) datosDiariosDuracion[mes] = {};
+            if (!datosDiariosDuracion[mes][tecnico]) datosDiariosDuracion[mes][tecnico] = {};
+            if (!datosDiariosDuracion[mes][tecnico][dia]) {
+                datosDiariosDuracion[mes][tecnico][dia] = { suma: 0, cantidad: 0 };
+            }
+
+            datosDiariosDuracion[mes][tecnico][dia].suma += diferencia;
+            datosDiariosDuracion[mes][tecnico][dia].cantidad++;
+        }
+    });
+
+    // RGU MENSUAL
+    const valoresRGUMensuales = listaMeses.map(mes => {
+        const tecnicos = datosRGU[mes] || {};
+        const promediosTecnicos = [];
+
+        Object.keys(tecnicos).forEach(tec => {
+            const dias = Object.values(tecnicos[tec]);
+            if (dias.length === 0) return;
+            const total = dias.reduce((suma, valor) => suma + valor, 0);
+            promediosTecnicos.push(total / dias.length);
+        });
+
+        if (promediosTecnicos.length === 0) return null;
+        const suma = promediosTecnicos.reduce((s, v) => s + v, 0);
+        return Number((suma / promediosTecnicos.length).toFixed(1));
+    });
+
+    const rguValidos = valoresRGUMensuales.filter(v => v !== null && v !== undefined);
+    const rguPromedio = rguValidos.length > 0 ? rguValidos.reduce((s, v) => s + v, 0) / rguValidos.length : 0;
+
+    // NIVEL 2: Promedio mensual de cada técnico a partir de sus promedios diarios
+    const promediosTecnicosDuracion = {};
+
+    listaMeses.forEach(mes => {
+        promediosTecnicosDuracion[mes] = {};
+        if (!datosDiariosDuracion[mes]) return;
+
+        Object.keys(datosDiariosDuracion[mes]).forEach(tec => {
+            const dias = datosDiariosDuracion[mes][tec];
+
+            const promediosDiarios = Object.values(dias).map(d => {
+                return d.cantidad > 0 ? d.suma / d.cantidad : 0;
+            });
+
+            if (promediosDiarios.length === 0) return;
+
+            const sumaPromedios = promediosDiarios.reduce((suma, p) => suma + p, 0);
+            promediosTecnicosDuracion[mes][tec] = sumaPromedios / promediosDiarios.length;
+        });
+    });
+
+    // NIVEL 3: Promedio del mes (idéntico a los valores del gráfico)
+    const promediosMensualesDuracion = listaMeses.map(mes => {
+        const tecnicos = Object.values(promediosTecnicosDuracion[mes] || {});
+        if (tecnicos.length === 0) return null;
+
+        const suma = tecnicos.reduce((total, p) => total + p, 0);
+        return Math.round(suma / tecnicos.length);
+    });
+
+    // NIVEL HISTÓRICO: Promedio final de los meses válidos
+    const duracionValidos = promediosMensualesDuracion.filter(v => v !== null && v !== undefined);
+    const duracionPromedio = duracionValidos.length > 0 
+        ? Math.round(duracionValidos.reduce((s, v) => s + v, 0) / duracionValidos.length) 
+        : 0;
+
+    const total = completadas + noRealizadas;
+    const efectividad = total > 0 ? (completadas / total) * 100 : 0;
+    const horas = Math.floor(duracionPromedio / 60);
+    const minutos = duracionPromedio % 60;
+    const duracionFormateada = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+
+    const setDOM = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
+
+    setDOM("totalOrdenes", total.toLocaleString("es-CL"));
+    setDOM("completadas", completadas.toLocaleString("es-CL"));
+    setDOM("noRealizadas", noRealizadas.toLocaleString("es-CL"));
+    setDOM("pctCompletadas", total > 0 ? (completadas / total * 100).toFixed(1) + "%" : "0%");
+    setDOM("efectividad", efectividad.toFixed(1) + "%");
+    setDOM("rguTotal", rguPromedio.toFixed(1).replace(".", ","));
+    setDOM("duracionPromedio", duracionFormateada);
 }
 
 // ==========================================
@@ -2082,13 +1939,71 @@ function renderizarTabla() {
 // GRÁFICOS
 // ==========================================
 
-function actualizarGraficos() {
+function actualizarGraficos(data) {
 
-    crearGraficoProduccion();
+    const datos =
+        Array.isArray(data)
+            ? data
+            : [];
 
-    crearGraficoRGU();
 
-    crearGraficoDuracion();
+    // Mantener datos filtrados
+    filteredData = datos;
+
+
+    console.log(
+        "📊 Actualizando gráficos históricos:",
+        datos.length
+    );
+
+
+    // =====================================================
+    // PRODUCCIÓN
+    // =====================================================
+
+    if (
+        typeof crearGraficoProduccion ===
+        "function"
+    ) {
+
+        crearGraficoProduccion(
+            datos
+        );
+
+    }
+
+
+    // =====================================================
+    // RGU
+    // =====================================================
+
+    if (
+        typeof crearGraficoRGU ===
+        "function"
+    ) {
+
+        crearGraficoRGU(
+            datos
+        );
+
+    }
+
+
+    // =====================================================
+    // DURACIÓN
+    // =====================================================
+
+    if (
+        typeof crearGraficoDuracion ===
+        "function"
+    ) {
+
+        crearGraficoDuracion(
+            datos
+        );
+
+    }
+
 }
 
 // ==========================================
@@ -4049,7 +3964,7 @@ function cambiarVista(vista, btnElement) {
         // KPI HISTÓRICO
         // =================================================
 
-        actualizarKPIs(
+        actualizarKPIsHistorico(
             datosHistoricos
         );
 
@@ -4180,7 +4095,7 @@ function actualizarVistaHoy() {
     // KPI DE HOY
     // =====================================================
 
-    actualizarKPIs(
+    actualizarKPIsHoy(
         datosVistaHoy
     );
 
