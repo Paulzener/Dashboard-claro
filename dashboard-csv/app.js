@@ -1157,130 +1157,841 @@ function obtenerNoRealizadas() {
 // KPIS
 // ==========================================
 
-function actualizarKPIs() {
-    const total = filteredData.length;
+function actualizarKPIs(data) {
+
+    const datos = Array.isArray(data)
+        ? data
+        : [];
+
+    const total = datos.length;
 
     let completadas = 0;
     let noRealizadas = 0;
+
     let duracionTotalSum = 0;
     let duracionConteo = 0;
 
     const agruparTecnicosKPI = {};
 
-    filteredData.forEach(item => {
-        const estado = String(item.Estado ?? "").trim().toLowerCase();
 
-        if (estado === "completado") completadas++;
-        if (estado === "no realizada") noRealizadas++;
+    // =====================================================
+    // RECORRER DATOS
+    // =====================================================
 
-        // Cálculo de Duración
-        const inicio = item.Inicio ?? item.Hora_Inicio;
-        const fin = item.Fin ?? item.Hora_Fin;
-        const diferencia = calcularDiferenciaMinutos(inicio, fin);
+    datos.forEach(item => {
 
-        if (estado === "completado" && diferencia !== null && diferencia >= 0 && diferencia < 720) {
+        const estado =
+            String(item.Estado ?? "")
+                .trim()
+                .toLowerCase();
+
+
+        // ESTADOS
+        if (estado === "completado") {
+            completadas++;
+        }
+
+        if (estado === "no realizada") {
+            noRealizadas++;
+        }
+
+
+        // =================================================
+        // DURACIÓN
+        // =================================================
+
+        const inicio =
+            item.Inicio ??
+            item.Hora_Inicio;
+
+        const fin =
+            item.Fin ??
+            item.Hora_Fin;
+
+        const diferencia =
+            calcularDiferenciaMinutos(
+                inicio,
+                fin
+            );
+
+        if (
+            estado === "completado" &&
+            diferencia !== null &&
+            diferencia >= 0 &&
+            diferencia < 720
+        ) {
+
             duracionTotalSum += diferencia;
             duracionConteo++;
+
         }
 
-        // KPI - Agrupación RGU por Técnico y Día 
-        if (estado === "completado" || estado === "no realizada") {
-            const fecha = obtenerFechaObjeto(item);
-            const tecnico = String(item.Tecnico ?? "").trim();
 
-            if (fecha && tecnico) {
-                const diaKey = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
+        // =================================================
+        // RGU
+        // =================================================
 
-                let rgu = item.RGU ?? 0;
-                if (typeof rgu === "string") {
-                    rgu = rgu.replace(",", ".").trim();
-                }
-                const rguNum = parseFloat(rgu) || 0;
-
-                if (!agruparTecnicosKPI[tecnico]) {
-                    agruparTecnicosKPI[tecnico] = {};
-                }
-                if (!agruparTecnicosKPI[tecnico][diaKey]) {
-                    agruparTecnicosKPI[tecnico][diaKey] = 0;
-                }
-
-                agruparTecnicosKPI[tecnico][diaKey] += rguNum;
-            }
+        if (
+            estado !== "completado" &&
+            estado !== "no realizada"
+        ) {
+            return;
         }
+
+
+        const fecha =
+            obtenerFechaObjeto(item);
+
+        let tecnico =
+            String(item.Tecnico ?? "")
+                .trim()
+                .toUpperCase();
+
+        if (!fecha || !tecnico) {
+            return;
+        }
+
+
+        tecnico =
+            tecnico
+                .normalize("NFD")
+                .replace(
+                    /[\u0300-\u036f]/g,
+                    ""
+                );
+
+
+        const diaKey =
+            `${fecha.getFullYear()}-` +
+            `${String(fecha.getMonth() + 1).padStart(2, "0")}-` +
+            `${String(fecha.getDate()).padStart(2, "0")}`;
+
+
+        let rgu =
+            item.RGU ?? 0;
+
+        if (typeof rgu === "string") {
+
+            rgu =
+                rgu
+                    .replace(",", ".")
+                    .trim();
+
+        }
+
+        const rguNum =
+            parseFloat(rgu) || 0;
+
+
+        if (!agruparTecnicosKPI[tecnico]) {
+            agruparTecnicosKPI[tecnico] = {};
+        }
+
+        if (
+            agruparTecnicosKPI[tecnico][diaKey] === undefined
+        ) {
+            agruparTecnicosKPI[tecnico][diaKey] = 0;
+        }
+
+        agruparTecnicosKPI[tecnico][diaKey] +=
+            rguNum;
+
     });
 
-    // ------------------------------
-    // CÁLCULOS DE PROMEDIOS Y PORCENTAJES
-    // ------------------------------
-    const tecnicos = Object.keys(agruparTecnicosKPI);
+
+    // =====================================================
+    // RGU PROMEDIO
+    // =====================================================
+
+    const tecnicos =
+        Object.keys(agruparTecnicosKPI);
+
     let rguPromedio = 0;
 
     if (tecnicos.length > 0) {
-        let suma = 0;
+
+        let sumaPromedios = 0;
+
         tecnicos.forEach(tecnico => {
-            const dias = Object.keys(agruparTecnicosKPI[tecnico]);
+
+            const dias =
+                Object.keys(
+                    agruparTecnicosKPI[tecnico]
+                );
+
             let totalTecnico = 0;
 
             dias.forEach(dia => {
-                totalTecnico += agruparTecnicosKPI[tecnico][dia];
+
+                totalTecnico +=
+                    agruparTecnicosKPI[tecnico][dia];
+
             });
 
             if (dias.length > 0) {
-                suma += totalTecnico / dias.length;
+
+                sumaPromedios +=
+                    totalTecnico / dias.length;
+
             }
+
         });
-        rguPromedio = suma / tecnicos.length;
+
+        rguPromedio =
+            sumaPromedios /
+            tecnicos.length;
     }
 
-    const efectividad = (completadas + noRealizadas) > 0
-        ? (completadas / (completadas + noRealizadas)) * 100
-        : 0;
 
-    const duracionPromedio = duracionConteo > 0
-        ? Math.round(duracionTotalSum / duracionConteo)
-        : 0;
+    // =====================================================
+    // EFECTIVIDAD
+    // =====================================================
 
-    const horas = Math.floor(duracionPromedio / 60);
-    const minutos = duracionPromedio % 60;
-    const duracionFormateada = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+    const totalEstados =
+        completadas +
+        noRealizadas;
 
-    // ------------------------------
-    // RENDERIZADO EN DOM
-    // ------------------------------
-    const totalElem = document.getElementById("totalOrdenes");
+    const efectividad =
+        totalEstados > 0
+            ? (
+                completadas /
+                totalEstados
+            ) * 100
+            : 0;
+
+
+    // =====================================================
+    // DURACIÓN
+    // =====================================================
+
+    const duracionPromedio =
+        duracionConteo > 0
+            ? Math.round(
+                duracionTotalSum /
+                duracionConteo
+            )
+            : 0;
+
+    const horas =
+        Math.floor(
+            duracionPromedio / 60
+        );
+
+    const minutos =
+        duracionPromedio % 60;
+
+    const duracionFormateada =
+        `${String(horas).padStart(2, "0")}:` +
+        `${String(minutos).padStart(2, "0")}`;
+
+
+    // =====================================================
+    // PINTAR KPI
+    // =====================================================
+
+    const totalElem =
+        document.getElementById("totalOrdenes");
+
     if (totalElem) {
-        totalElem.innerText = total.toLocaleString("es-CL"); // Formateado con punto de miles
+        totalElem.innerText =
+            total.toLocaleString("es-CL");
     }
 
-    const completadasElem = document.getElementById("completadas");
+
+    const completadasElem =
+        document.getElementById("completadas");
+
     if (completadasElem) {
-        completadasElem.innerText = completadas.toLocaleString("es-CL");
+        completadasElem.innerText =
+            completadas.toLocaleString("es-CL");
     }
 
-    const pctCompElem = document.getElementById("pctCompletadas");
-    if (pctCompElem) {
-        pctCompElem.innerText = total > 0 ? ((completadas / total) * 100).toFixed(1) + "%" : "0%";
-    }
 
-    const noRealizadasElem = document.getElementById("noRealizadas");
+    const noRealizadasElem =
+        document.getElementById("noRealizadas");
+
     if (noRealizadasElem) {
-        noRealizadasElem.innerText = noRealizadas.toLocaleString("es-CL");
+        noRealizadasElem.innerText =
+            noRealizadas.toLocaleString("es-CL");
     }
 
-    const efectividadElem = document.getElementById("efectividad");
+
+    const pctCompElem =
+        document.getElementById("pctCompletadas");
+
+    if (pctCompElem) {
+
+        pctCompElem.innerText =
+            total > 0
+                ? (
+                    completadas /
+                    total *
+                    100
+                ).toFixed(1) + "%"
+                : "0%";
+    }
+
+
+    const efectividadElem =
+        document.getElementById("efectividad");
+
     if (efectividadElem) {
-        efectividadElem.innerText = efectividad.toFixed(1) + "%";
+
+        efectividadElem.innerText =
+            efectividad.toFixed(1) + "%";
     }
 
-    const rguElem = document.getElementById("rguTotal");
+
+    const rguElem =
+        document.getElementById("rguTotal");
+
     if (rguElem) {
-        rguElem.innerText = rguPromedio.toFixed(1).replace(".", ",");
+
+        rguElem.innerText =
+            rguPromedio
+                .toFixed(1)
+                .replace(".", ",");
     }
 
-    const durElem = document.getElementById("duracionPromedio");
-    if (durElem) {
-        durElem.innerText = duracionFormateada;
+
+    const duracionElem =
+        document.getElementById("duracionPromedio");
+
+    if (duracionElem) {
+
+        duracionElem.innerText =
+            duracionFormateada;
     }
+
+}
+
+function actualizarKPIsAltas(data) {
+
+    const datos = Array.isArray(data) ? data : [];
+
+    // =====================================================
+    // CONTADORES
+    // =====================================================
+
+    let completadas = 0;
+    let noRealizadas = 0;
+
+    // =====================================================
+    // DURACIÓN
+    // =====================================================
+
+    let duracionTotalSum = 0;
+    let duracionConteo = 0;
+
+    // =====================================================
+    // RGU DE LOS 30 DÍAS
+    // EXACTAMENTE IGUAL AL GRÁFICO
+    // =====================================================
+
+    const valoresRGU = [];
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    for (let i = 29; i >= 0; i--) {
+
+        const fecha = new Date(hoy);
+        fecha.setDate(fecha.getDate() - i);
+
+        const year = fecha.getFullYear();
+        const month = String(
+            fecha.getMonth() + 1
+        ).padStart(2, "0");
+
+        const day = String(
+            fecha.getDate()
+        ).padStart(2, "0");
+
+        const key =
+            `${year}-${month}-${day}`;
+
+        // Técnicos del día
+        const tecnicos = {};
+
+        // =================================================
+        // RECORRER DATOS
+        // =================================================
+
+        datos.forEach(item => {
+
+            // ---------------------------------------------
+            // TIPO DE ACTIVIDAD
+            // ---------------------------------------------
+
+            const tipo =
+                String(
+                    item.Tipo_de_Actividad ?? ""
+                )
+                .trim()
+                .toLowerCase();
+
+            if (
+                tipo !== "alta" &&
+                tipo !== "alta traslado" &&
+                tipo !== "migración" &&
+                tipo !== "migracion"
+            ) {
+                return;
+            }
+
+            // ---------------------------------------------
+            // FECHA
+            // IGUAL AL GRÁFICO
+            // ---------------------------------------------
+
+            const fechaRaw =
+                item.Origen || item.Fecha;
+
+            if (!fechaRaw) return;
+
+            const rawStr =
+                String(fechaRaw).trim();
+
+            const itemKey =
+                rawStr.length >= 10
+                    ? rawStr.substring(0, 10)
+                    : "";
+
+            if (itemKey !== key) return;
+
+            // ---------------------------------------------
+            // ESTADO
+            // ---------------------------------------------
+
+            const estado =
+                String(
+                    item.Estado ?? ""
+                )
+                .trim()
+                .toLowerCase();
+
+            // Para RGU: ambos estados
+            if (
+                estado !== "completado" &&
+                estado !== "no realizada"
+            ) {
+                return;
+            }
+
+            // ---------------------------------------------
+            // RGU
+            // ---------------------------------------------
+
+            let rgu =
+                item.RGU ?? 0;
+
+            if (typeof rgu === "string") {
+
+                rgu =
+                    rgu
+                        .replace(",", ".")
+                        .trim();
+
+            }
+
+            rgu =
+                Number(rgu) || 0;
+
+            // ---------------------------------------------
+            // TÉCNICO
+            // ---------------------------------------------
+
+            let tecnico =
+                String(
+                    item.Tecnico ?? ""
+                )
+                .trim()
+                .toUpperCase();
+
+            if (!tecnico) return;
+
+            tecnico =
+                tecnico
+                    .normalize("NFD")
+                    .replace(
+                        /[\u0300-\u036f]/g,
+                        ""
+                    );
+
+            // ---------------------------------------------
+            // SUMAR RGU DEL TÉCNICO
+            // ---------------------------------------------
+
+            if (!tecnicos[tecnico]) {
+                tecnicos[tecnico] = 0;
+            }
+
+            tecnicos[tecnico] += rgu;
+
+        });
+
+
+        // =================================================
+        // PROMEDIO RGU DEL DÍA
+        // EXACTAMENTE IGUAL AL GRÁFICO
+        // =================================================
+
+        const listaTecnicos =
+            Object.keys(tecnicos);
+
+        let promedioDia = 0;
+
+        if (listaTecnicos.length > 0) {
+
+            let suma = 0;
+
+            listaTecnicos.forEach(tecnico => {
+
+                suma +=
+                    tecnicos[tecnico];
+
+            });
+
+            promedioDia =
+                suma /
+                listaTecnicos.length;
+        }
+
+        // El gráfico hace toFixed(1)
+        promedioDia =
+            Number(
+                promedioDia.toFixed(1)
+            );
+
+        // Guardar el valor del día
+        valoresRGU.push(promedioDia);
+
+
+        // =================================================
+        // CONTADORES Y DURACIÓN
+        // SOLO UNA VEZ POR REGISTRO DEL DÍA
+        // =================================================
+
+        datos.forEach(item => {
+
+            const tipo =
+                String(
+                    item.Tipo_de_Actividad ?? ""
+                )
+                .trim()
+                .toLowerCase();
+
+            if (
+                tipo !== "alta" &&
+                tipo !== "alta traslado" &&
+                tipo !== "migración" &&
+                tipo !== "migracion"
+            ) {
+                return;
+            }
+
+            const fechaRaw =
+                item.Origen || item.Fecha;
+
+            if (!fechaRaw) return;
+
+            const rawStr =
+                String(fechaRaw).trim();
+
+            const itemKey =
+                rawStr.length >= 10
+                    ? rawStr.substring(0, 10)
+                    : "";
+
+            if (itemKey !== key) return;
+
+            const estado =
+                String(
+                    item.Estado ?? ""
+                )
+                .trim()
+                .toLowerCase();
+
+
+            // ---------------------------------------------
+            // COMPLETADAS
+            // ---------------------------------------------
+
+            if (estado === "completado") {
+
+                completadas++;
+
+                // -----------------------------------------
+                // DURACIÓN
+                // -----------------------------------------
+
+                const inicio =
+                    item.Inicio ??
+                    item.Hora_Inicio;
+
+                const fin =
+                    item.Fin ??
+                    item.Hora_Fin;
+
+                const diferencia =
+                    calcularDiferenciaMinutos(
+                        inicio,
+                        fin
+                    );
+
+                if (
+                    diferencia !== null &&
+                    diferencia >= 0 &&
+                    diferencia < 720
+                ) {
+
+                    duracionTotalSum +=
+                        diferencia;
+
+                    duracionConteo++;
+
+                }
+
+            }
+
+
+            // ---------------------------------------------
+            // NO REALIZADAS
+            // ---------------------------------------------
+
+            if (
+                estado === "no realizada"
+            ) {
+
+                noRealizadas++;
+
+            }
+
+        });
+
+    }
+
+
+    // =====================================================
+    // PROMEDIO DE LOS 30 VALORES DEL GRÁFICO
+    // =====================================================
+
+    let rguPromedio = 0;
+
+    if (valoresRGU.length > 0) {
+
+        const sumaRGU =
+            valoresRGU.reduce(
+                (acumulado, valor) =>
+                    acumulado + valor,
+                0
+            );
+
+        rguPromedio =
+            sumaRGU /
+            valoresRGU.length;
+    }
+
+
+    // =====================================================
+    // EFECTIVIDAD
+    // =====================================================
+
+    const totalEstados =
+        completadas +
+        noRealizadas;
+
+    const efectividad =
+        totalEstados > 0
+            ? (
+                completadas /
+                totalEstados
+            ) * 100
+            : 0;
+
+
+    // =====================================================
+    // DURACIÓN PROMEDIO
+    // =====================================================
+
+    const duracionPromedio =
+        duracionConteo > 0
+            ? Math.round(
+                duracionTotalSum /
+                duracionConteo
+            )
+            : 0;
+
+
+    const horas =
+        Math.floor(
+            duracionPromedio / 60
+        );
+
+    const minutos =
+        duracionPromedio % 60;
+
+
+    const duracionFormateada =
+        `${String(horas).padStart(2, "0")}:` +
+        `${String(minutos).padStart(2, "0")}`;
+
+
+    // =====================================================
+    // TOTAL
+    // =====================================================
+
+    const total =
+        completadas +
+        noRealizadas;
+
+
+    // =====================================================
+    // ACTUALIZAR KPIs
+    // =====================================================
+
+    const totalElem =
+        document.getElementById(
+            "totalOrdenes"
+        );
+
+    if (totalElem) {
+
+        totalElem.innerText =
+            total.toLocaleString("es-CL");
+
+    }
+
+
+    const completadasElem =
+        document.getElementById(
+            "completadas"
+        );
+
+    if (completadasElem) {
+
+        completadasElem.innerText =
+            completadas.toLocaleString("es-CL");
+
+    }
+
+
+    const noRealizadasElem =
+        document.getElementById(
+            "noRealizadas"
+        );
+
+    if (noRealizadasElem) {
+
+        noRealizadasElem.innerText =
+            noRealizadas.toLocaleString("es-CL");
+
+    }
+
+
+    const pctCompElem =
+        document.getElementById(
+            "pctCompletadas"
+        );
+
+    if (pctCompElem) {
+
+        pctCompElem.innerText =
+            total > 0
+                ? (
+                    completadas /
+                    total *
+                    100
+                ).toFixed(1) + "%"
+                : "0%";
+
+    }
+
+
+    const efectividadElem =
+        document.getElementById(
+            "efectividad"
+        );
+
+    if (efectividadElem) {
+
+        efectividadElem.innerText =
+            efectividad.toFixed(1) + "%";
+
+    }
+
+
+    const rguElem =
+        document.getElementById(
+            "rguTotal"
+        );
+
+    if (rguElem) {
+
+        rguElem.innerText =
+            rguPromedio
+                .toFixed(1)
+                .replace(".", ",");
+
+    }
+
+
+    const duracionElem =
+        document.getElementById(
+            "duracionPromedio"
+        );
+
+    if (duracionElem) {
+
+        duracionElem.innerText =
+            duracionFormateada;
+
+    }
+
+
+    // =====================================================
+    // DEBUG
+    // =====================================================
+
+    console.log(
+        "===== KPI ALTAS ====="
+    );
+
+    console.log(
+        "Total:",
+        total
+    );
+
+    console.log(
+        "Completadas:",
+        completadas
+    );
+
+    console.log(
+        "No realizadas:",
+        noRealizadas
+    );
+
+    console.log(
+        "Efectividad:",
+        efectividad.toFixed(1) + "%"
+    );
+
+    console.log(
+        "30 valores RGU:",
+        valoresRGU
+    );
+
+    console.log(
+        "Promedio RGU 30 días:",
+        rguPromedio.toFixed(1)
+    );
+
+    console.log(
+        "Duración:",
+        duracionFormateada
+    );
+
 }
 
 // ==========================================
@@ -3213,92 +3924,198 @@ function convertirMinutosHHMM(minutos) {
 function cambiarVista(vista, btnElement) {
 
     vistaActual = vista;
-    document.getElementById('kpis')
-        ?.classList.toggle('hidden', vista === 'detalles');
 
-    // Cambiar botón activo
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    // =====================================================
+    // MOSTRAR / OCULTAR KPIs
+    // =====================================================
+
+    document
+        .getElementById("kpis")
+        ?.classList.toggle(
+            "hidden",
+            vista === "detalles"
+        );
+
+
+    // =====================================================
+    // BOTÓN ACTIVO
+    // =====================================================
+
+    document
+        .querySelectorAll(".tab-btn")
+        .forEach(btn => {
+            btn.classList.remove("active");
+        });
 
     if (btnElement) {
-        btnElement.classList.add('active');
+        btnElement.classList.add("active");
     }
 
-    // Ocultar todas las vistas
-    document.querySelectorAll('.tab-view').forEach(view => {
-        view.classList.add('hidden');
-    });
 
-    // ==========================================
+    // =====================================================
+    // OCULTAR TODAS LAS VISTAS
+    // =====================================================
+
+    document
+        .querySelectorAll(".tab-view")
+        .forEach(view => {
+            view.classList.add("hidden");
+        });
+
+
+    // =====================================================
     // VISTA HOY
-    // ==========================================
-    if (vista === 'hoy') {
+    // =====================================================
 
-        document.getElementById('viewHoy')?.classList.remove('hidden');
+    if (vista === "hoy") {
+
+        document
+            .getElementById("viewHoy")
+            ?.classList.remove("hidden");
 
         actualizarVistaHoy();
 
     }
-    // ==========================================
-    // VISTA ALTAS (DIARIOS)
-    // ==========================================
-    else if (vista === 'altas') {
-        document.getElementById('viewAltas')?.classList.remove('hidden');
 
-        // Obtener la data filtrada o global de tu aplicación
-        const data = obtenerDatosFiltrados();
 
-        // Renderizar los 3 gráficos de Altas
+    // =====================================================
+    // VISTA ALTAS
+    // =====================================================
+
+    else if (vista === "altas") {
+
+        document
+            .getElementById("viewAltas")
+            ?.classList.remove("hidden");
+
+
+        // IMPORTANTE:
+        // Obtener nuevamente los datos filtrados
+        const data =
+            obtenerDatosFiltrados();
+
+
+        console.log(
+            "🟣 ALTAS:",
+            data.length
+        );
+
+
+        // KPIs de Altas
+        actualizarKPIsAltas(data);
+
+
+        // Gráficos de Altas
         crearGraficoHoyProduccionAltas(data);
         crearGraficoHoyRGUAltas(data);
         crearGraficoHoyDuracionAltas(data);
+
     }
 
-    // ==========================================
+
+    // =====================================================
     // VISTA HISTÓRICO
-    // ==========================================
-    else if (vista === 'historico') {
+    // =====================================================
 
-        document.getElementById('viewHistorico')?.classList.remove('hidden');
+    else if (vista === "historico") {
 
-        // KPIs históricos
-        filteredData = obtenerDatosFiltrados();
+        document
+            .getElementById("viewHistorico")
+            ?.classList.remove("hidden");
 
-        actualizarKPIs();
 
-        // Gráficos históricos
-        actualizarGraficos();
+        // =================================================
+        // OBTENER DATOS NUEVAMENTE
+        // =================================================
+
+        const datosHistoricos =
+            obtenerDatosFiltrados();
+
+
+        console.log(
+            "🟢 HISTÓRICO:",
+            datosHistoricos.length
+        );
+
+
+        // IMPORTANTE:
+        // Actualizamos filteredData con TODOS
+        // los datos filtrados.
+        filteredData =
+            datosHistoricos;
+
+
+        // =================================================
+        // KPI HISTÓRICO
+        // =================================================
+
+        actualizarKPIs(
+            datosHistoricos
+        );
+
+
+        // =================================================
+        // GRÁFICOS HISTÓRICOS
+        // =================================================
+
+        actualizarGraficos(
+            datosHistoricos
+        );
 
     }
 
-    // ==========================================
-    // VISTA DETALLES
-    // ==========================================
-    else if (vista === 'detalles') {
-        const viewDetalles = document.getElementById('viewDetalles');
-        viewDetalles?.classList.remove('hidden');
 
-        // 1. Seleccionar el tbody de la tabla
-        const tbody = document.querySelector('#viewDetalles table tbody'); // Ajusta el id/clase del tbody si es necesario
+    // =====================================================
+    // VISTA DETALLES
+    // =====================================================
+
+    else if (vista === "detalles") {
+
+        const viewDetalles =
+            document.getElementById(
+                "viewDetalles"
+            );
+
+        viewDetalles
+            ?.classList.remove("hidden");
+
+
+        const tbody =
+            document.querySelector(
+                "#viewDetalles table tbody"
+            );
+
 
         if (tbody) {
-            // 2. Insertar la fila de carga dentro de la tabla
+
             tbody.innerHTML = `
-            <tr>
-                <td colspan="11" style="text-align: center; padding: 20px;">
-                    Cargando datos...
-                </td>
-            </tr>
-        `;
+                <tr>
+                    <td
+                        colspan="11"
+                        style="
+                            text-align:center;
+                            padding:20px;
+                        "
+                    >
+                        Cargando datos...
+                    </td>
+                </tr>
+            `;
+
         }
 
-        // 3. Procesar datos y renderizar (renderizarTabla reemplazará la fila de carga automáticamente)
+
         setTimeout(() => {
-            filteredData = obtenerDatosFiltrados();
+
+            filteredData =
+                obtenerDatosFiltrados();
+
             renderizarTabla();
+
         }, 50);
+
     }
+
 }
 
 function obtenerDatosUltimosDias(data, cantidadDias = 30) {
@@ -3338,22 +4155,51 @@ function actualizarVistaHoy() {
         return;
     }
 
-    // Primero respetamos los filtros
+    // Respetar filtros actuales
     const datosFiltrados = filteredData;
-    console.log("🔴 KPI - obtenerDatosFiltrados:", datosFiltrados.length);
 
-    // Obtener datos desde hoy hacia atrás
-    datosVistaHoy = obtenerDatosUltimosDias(datosFiltrados, 30);
+    console.log(
+        "🔴 Datos filtrados:",
+        datosFiltrados.length
+    );
 
-    console.log("Datos últimos días:", datosVistaHoy);
+    // Últimos 30 días
+    datosVistaHoy =
+        obtenerDatosUltimosDias(
+            datosFiltrados,
+            30
+        );
 
-    // KPIs de los datos recientes
-    actualizarKPIsConDatos(datosVistaHoy);
+    console.log(
+        "🔵 Datos últimos 30 días:",
+        datosVistaHoy.length
+    );
 
-    // Crear los 3 gráficos
-    crearGraficoHoyProduccion(datosVistaHoy);
-    crearGraficoHoyRGU(datosVistaHoy);
-    crearGraficoHoyDuracion(datosVistaHoy);
+
+    // =====================================================
+    // KPI DE HOY
+    // =====================================================
+
+    actualizarKPIs(
+        datosVistaHoy
+    );
+
+
+    // =====================================================
+    // GRÁFICOS DE HOY
+    // =====================================================
+
+    crearGraficoHoyProduccion(
+        datosVistaHoy
+    );
+
+    crearGraficoHoyRGU(
+        datosVistaHoy
+    );
+
+    crearGraficoHoyDuracion(
+        datosVistaHoy
+    );
 }
 
 function obtenerDatosFiltrados() {
@@ -3505,7 +4351,7 @@ function cargarGraficosHoy() {
     // ACTUALIZAR KPIs DE HOY
     // ==========================================
 
-    actualizarKPIsConDatos(datosVistaHoy);
+    actualizarKPIs(datosVistaHoy);
 
     // ==========================================
     // CREAR GRÁFICOS
@@ -4140,129 +4986,519 @@ function crearGraficoHoyProduccion(data) {
 }
 
 function crearGraficoHoyRGU(data) {
+
     const labels = [];
     const valores = [];
-    const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-    // Helper para extraer YYYY-MM-DD sin desfase por zona horaria/UTC
+    const diasSemana = [
+        "Dom",
+        "Lun",
+        "Mar",
+        "Mié",
+        "Jue",
+        "Vie",
+        "Sáb"
+    ];
+
+    // =====================================================
+    // ACUMULADOR GENERAL PARA EL KPI
+    // =====================================================
+
+    const promediosDiarios = [];
+
+
+    // =====================================================
+    // OBTENER FECHA SIN DESFASE HORARIO
+    // =====================================================
+
     const obtenerFechaKey = (item) => {
-        const raw = item.Fecha || item.Origen;
-        if (!raw) return null;
-        const str = String(raw).trim();
-        const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
-        return match ? match[1] : null;
+
+        const raw =
+            item.Fecha ||
+            item.Origen;
+
+        if (!raw) {
+            return null;
+        }
+
+        const str =
+            String(raw).trim();
+
+        const match =
+            str.match(
+                /^(\d{4}-\d{2}-\d{2})/
+            );
+
+        return match
+            ? match[1]
+            : null;
     };
 
-    // 1. Fijar medianoche local para construir los últimos 30 días
+
+    // =====================================================
+    // HOY
+    // =====================================================
+
     const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+
+    hoy.setHours(
+        0,
+        0,
+        0,
+        0
+    );
+
+
+    // =====================================================
+    // ÚLTIMOS 30 DÍAS
+    // =====================================================
 
     for (let i = 29; i >= 0; i--) {
-        const fecha = new Date(hoy);
-        fecha.setDate(fecha.getDate() - i);
 
-        // Clave YYYY-MM-DD
-        const year = fecha.getFullYear();
-        const month = String(fecha.getMonth() + 1).padStart(2, '0');
-        const day = String(fecha.getDate()).padStart(2, '0');
-        const key = `${year}-${month}-${day}`;
+        const fecha =
+            new Date(hoy);
+
+        fecha.setDate(
+            fecha.getDate() - i
+        );
+
+
+        // =================================================
+        // FECHA YYYY-MM-DD
+        // =================================================
+
+        const year =
+            fecha.getFullYear();
+
+        const month =
+            String(
+                fecha.getMonth() + 1
+            ).padStart(2, "0");
+
+        const day =
+            String(
+                fecha.getDate()
+            ).padStart(2, "0");
+
+        const key =
+            `${year}-${month}-${day}`;
+
+
+        // =================================================
+        // TÉCNICOS DEL DÍA
+        // =================================================
 
         const tecnicos = {};
 
+
         if (Array.isArray(data)) {
+
             data.forEach(item => {
-                const itemKey = obtenerFechaKey(item);
-                if (itemKey !== key) return;
 
-                // Filtro de Estado
-                const estado = (item.Estado || "").toString().trim().toLowerCase();
-                if (estado !== "completado" && estado !== "no realizada") return;
+                const itemKey =
+                    obtenerFechaKey(item);
 
-                // Normalización de Técnico
-                let tecnico = (item.Tecnico || "").toString().trim().toUpperCase();
-                if (!tecnico) return;
-                tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-                // Parsear RGU
-                let rgu = item.RGU ?? 0;
-                if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
-                rgu = Number(rgu) || 0;
-
-                if (!(tecnico in tecnicos)) tecnicos[tecnico] = 0;
-                tecnicos[tecnico] += rgu;
-            });
-        }
-
-        const listaTecnicos = Object.keys(tecnicos);
-        let promedio = 0;
-
-        if (listaTecnicos.length > 0) {
-            let suma = 0;
-            listaTecnicos.forEach(tec => { suma += tecnicos[tec]; });
-            promedio = suma / listaTecnicos.length;
-        }
-
-        labels.push([diasSemana[fecha.getDay()], `${day}/${month}`]);
-        valores.push(Number(promedio.toFixed(1)));
-    }
-
-    // 2. Renderizado Chart.js
-    const canvas = document.getElementById("chartHoy2");
-    if (!canvas) return;
-
-    if (typeof chartHoy2Instance !== "undefined" && chartHoy2Instance) {
-        chartHoy2Instance.destroy();
-    }
-
-    chartHoy2Instance = new Chart(canvas.getContext("2d"), {
-        type: "line",
-        data: {
-            labels: labels,
-            datasets: [{
-                label: "RGU",
-                data: valores,
-                borderColor: "#1d2a57",
-                backgroundColor: "#1d2a57",
-                borderWidth: 2.5,
-                tension: 0.2,
-                spanGaps: true,
-                pointRadius: 4,
-                datalabels: {
-                    anchor: "top",
-                    align: "end",
-                    offset: 6,
-                    color: "#1d2a57",
-                    font: { size: 11, weight: "bold", family: "Segoe UI, sans-serif" },
-                    formatter: value => value !== null ? value.toString().replace(".", ",") : ""
+                if (itemKey !== key) {
+                    return;
                 }
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            layout: { padding: { top: 25, bottom: 5, left: 10, right: 10 } },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    border: { display: false },
-                    ticks: {
-                        autoSkip: false,
-                        color: "#1e293b",
-                        padding: 8,
-                        font: { size: 12, weight: "600", family: "Segoe UI, sans-serif" }
-                    }
-                },
-                y: { display: false, beginAtZero: true, grace: "0%" }
-            }
+
+
+                // =========================================
+                // ESTADO
+                // =========================================
+
+                const estado =
+                    String(
+                        item.Estado ?? ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+                if (
+                    estado !== "completado" &&
+                    estado !== "no realizada"
+                ) {
+                    return;
+                }
+
+
+                // =========================================
+                // TÉCNICO
+                // =========================================
+
+                let tecnico =
+                    String(
+                        item.Tecnico ?? ""
+                    )
+                        .trim()
+                        .toUpperCase();
+
+                if (!tecnico) {
+                    return;
+                }
+
+
+                // Normalizar acentos
+
+                tecnico =
+                    tecnico
+                        .normalize("NFD")
+                        .replace(
+                            /[\u0300-\u036f]/g,
+                            ""
+                        );
+
+
+                // =========================================
+                // RGU
+                // NULL / VACÍO = 0
+                // =========================================
+
+                let rgu =
+                    item.RGU ?? 0;
+
+                if (
+                    typeof rgu === "string"
+                ) {
+
+                    rgu =
+                        rgu
+                            .replace(",", ".")
+                            .trim();
+
+                }
+
+                rgu =
+                    Number(rgu) || 0;
+
+
+                // =========================================
+                // ACUMULAR RGU DEL TÉCNICO
+                // =========================================
+
+                if (
+                    !(
+                        tecnico in tecnicos
+                    )
+                ) {
+
+                    tecnicos[tecnico] = 0;
+
+                }
+
+                tecnicos[tecnico] +=
+                    rgu;
+
+            });
+
         }
-    });
+
+
+        // =================================================
+        // PROMEDIO DE TÉCNICOS DEL DÍA
+        // =================================================
+
+        const listaTecnicos =
+            Object.keys(tecnicos);
+
+        let promedio =
+            0;
+
+
+        if (
+            listaTecnicos.length > 0
+        ) {
+
+            let suma =
+                0;
+
+            listaTecnicos.forEach(
+                tecnico => {
+
+                    suma +=
+                        tecnicos[tecnico];
+
+                }
+            );
+
+
+            promedio =
+                suma /
+                listaTecnicos.length;
+
+        }
+
+
+        // =================================================
+        // GUARDAR PROMEDIO DEL DÍA
+        // =================================================
+
+        promediosDiarios.push(
+            promedio
+        );
+
+
+        // =================================================
+        // LABEL DEL GRÁFICO
+        // =================================================
+
+        labels.push([
+            diasSemana[
+            fecha.getDay()
+            ],
+            `${day}/${month}`
+        ]);
+
+
+        valores.push(
+            Number(
+                promedio.toFixed(1)
+            )
+        );
+
+    }
+
+
+    // =====================================================
+    // CALCULAR KPI RGU
+    //
+    // Promedio de los promedios diarios
+    // =====================================================
+
+    let rguPromedio =
+        0;
+
+
+    if (
+        promediosDiarios.length > 0
+    ) {
+
+        const suma =
+            promediosDiarios.reduce(
+                (total, valor) =>
+                    total + valor,
+                0
+            );
+
+        rguPromedio =
+            suma /
+            promediosDiarios.length;
+
+    }
+
+
+    // =====================================================
+    // ACTUALIZAR KPI RGU
+    // =====================================================
+
+    const rguElem =
+        document.getElementById(
+            "rguTotal"
+        );
+
+    if (rguElem) {
+
+        rguElem.innerText =
+            rguPromedio
+                .toFixed(1)
+                .replace(".", ",");
+
+    }
+
+
+    // =====================================================
+    // RENDERIZAR GRÁFICO
+    // =====================================================
+
+    const canvas =
+        document.getElementById(
+            "chartHoy2"
+        );
+
+    if (!canvas) {
+        return;
+    }
+
+
+    if (
+        typeof chartHoy2Instance !==
+        "undefined" &&
+        chartHoy2Instance
+    ) {
+
+        chartHoy2Instance.destroy();
+
+    }
+
+
+    chartHoy2Instance =
+        new Chart(
+            canvas.getContext("2d"),
+            {
+
+                type: "line",
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [{
+
+                        label: "RGU",
+
+                        data: valores,
+
+                        borderColor: "#1d2a57",
+
+                        backgroundColor: "#1d2a57",
+
+                        borderWidth: 2.5,
+
+                        tension: 0.2,
+
+                        spanGaps: true,
+
+                        pointRadius: 4,
+
+                        datalabels: {
+
+                            anchor: "top",
+
+                            align: "end",
+
+                            offset: 6,
+
+                            color: "#1d2a57",
+
+                            font: {
+
+                                size: 11,
+
+                                weight: "bold",
+
+                                family:
+                                    "Segoe UI, sans-serif"
+
+                            },
+
+                            formatter:
+                                value =>
+                                    value !== null
+                                        ? value
+                                            .toString()
+                                            .replace(
+                                                ".",
+                                                ","
+                                            )
+                                        : ""
+
+                        }
+
+                    }]
+
+                },
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    plugins: {
+
+                        legend: {
+                            display: false
+                        }
+
+                    },
+
+                    layout: {
+
+                        padding: {
+
+                            top: 25,
+
+                            bottom: 5,
+
+                            left: 10,
+
+                            right: 10
+
+                        }
+
+                    },
+
+                    scales: {
+
+                        x: {
+
+                            grid: {
+                                display: false
+                            },
+
+                            border: {
+                                display: false
+                            },
+
+                            ticks: {
+
+                                autoSkip: false,
+
+                                color: "#1e293b",
+
+                                padding: 8,
+
+                                font: {
+
+                                    size: 12,
+
+                                    weight: "600",
+
+                                    family:
+                                        "Segoe UI, sans-serif"
+
+                                }
+
+                            }
+
+                        },
+
+                        y: {
+
+                            display: false,
+
+                            beginAtZero: true,
+
+                            grace: "0%"
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
+
+    // =====================================================
+    // MOVER SCROLL AL FINAL
+    // =====================================================
 
     setTimeout(() => {
-        if (typeof moverScrollGraficosAlFinal === "function") {
+
+        if (
+            typeof moverScrollGraficosAlFinal ===
+            "function"
+        ) {
+
             moverScrollGraficosAlFinal();
+
         }
+
     }, 100);
+
 }
 
 function crearGraficoHoyDuracion(data) {
