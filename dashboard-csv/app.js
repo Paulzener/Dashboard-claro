@@ -14,8 +14,8 @@ let filtroSelecciones = {
     actividad: [],
     zona: [],
     ciudad: [],
-    ano: [],
-    mes: []
+    tecnico: [],
+    supervisor: []
 };
 
 let estadoChartInstance = null;
@@ -40,6 +40,12 @@ let rangoFechasHoy = {
     desde: null, // Date | null -> null significa "usar últimos 30 días"
     hasta: null
 };
+
+let rangoFechasAltas = {
+    desde: null,
+    hasta: null
+};
+
 const ordenMeses = [
     "Ene", "Feb", "Mar", "Abr", "May", "Jun",
     "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
@@ -73,11 +79,29 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================
     // RANGO DE FECHAS - VISTA HOY
     // ==========================
+    const inputRangoAltasDesde = document.getElementById("rangoAltasDesde");
+    const inputRangoAltasHasta = document.getElementById("rangoAltasHasta");
+    const btnAplicarRangoAltas = document.getElementById("aplicarRangoAltas");
+    const btnResetRangoAltas = document.getElementById("resetRangoAltas");
 
     const inputRangoDesde = document.getElementById("rangoHoyDesde");
     const inputRangoHasta = document.getElementById("rangoHoyHasta");
     const btnAplicarRangoHoy = document.getElementById("applyAllFilters");
     const btnResetRangoHoy = document.getElementById("clearFilters");
+
+
+    btnResetRangoAltas?.addEventListener("click", () => {
+
+        rangoFechasAltas.desde = null;
+        rangoFechasAltas.hasta = null;
+
+        if (inputRangoAltasDesde) inputRangoAltasDesde.value = "";
+        if (inputRangoAltasHasta) inputRangoAltasHasta.value = "";
+
+        if (vistaActual === "altas") {
+            actualizarVistaAltas();
+        }
+    });
 
     btnAplicarRangoHoy?.addEventListener("click", () => {
 
@@ -110,7 +134,36 @@ document.addEventListener("DOMContentLoaded", () => {
             actualizarVistaHoy();
         }
     });
+    btnAplicarRangoAltas?.addEventListener("click", () => {
 
+        if (!inputRangoAltasDesde?.value || !inputRangoAltasHasta?.value) {
+            alert("Selecciona una fecha de inicio y una de fin.");
+            return;
+        }
+
+        const [anoD, mesD, diaD] = inputRangoAltasDesde.value.split("-").map(Number);
+        const [anoH, mesH, diaH] = inputRangoAltasHasta.value.split("-").map(Number);
+
+        rangoFechasAltas.desde = new Date(anoD, mesD - 1, diaD);
+        rangoFechasAltas.hasta = new Date(anoH, mesH - 1, diaH);
+
+        if (vistaActual === "altas") {
+            actualizarVistaAltas();
+        }
+    });
+
+    btnResetRangoAltas?.addEventListener("click", () => {
+
+        rangoFechasAltas.desde = null;
+        rangoFechasAltas.hasta = null;
+
+        if (inputRangoAltasDesde) inputRangoAltasDesde.value = "";
+        if (inputRangoAltasHasta) inputRangoAltasHasta.value = "";
+
+        if (vistaActual === "altas") {
+            actualizarVistaAltas();
+        }
+    });
 
 
     document
@@ -803,136 +856,41 @@ function mostrarSecciones() {
 
 function poblarFiltros(data) {
 
-    const anos = new Set();
     const ciudades = new Set();
     const zonas = new Set();
     const actividades = new Set();
+    const tecnicos = new Set();
+    const supervisores = new Set();
 
     data.forEach(item => {
 
-        // ==========================
-        // FECHA
-        // ==========================
+        const act = (item.Tipo_de_Actividad || "").toString().trim();
+        if (act) actividades.add(act);
 
-        const fechaObj = obtenerFechaObjeto(item);
+        const ciudad = (item.Ciudad || "").toString().trim();
+        if (ciudad) ciudades.add(ciudad);
 
-        if (fechaObj) {
+        const zona = (item.Zona_de_trabajo || "").toString().trim();
+        if (zona) zonas.add(zona);
 
-            const ano = fechaObj.getFullYear();
+        const tecnico = (item.Tecnico || "").toString().trim();
+        if (tecnico) tecnicos.add(tecnico);
 
-            if (!isNaN(ano)) {
-                anos.add(String(ano));
-            }
-        }
-
-
-        // ==========================
-        // ACTIVIDAD
-        // ==========================
-
-        const act = (item.Tipo_de_Actividad || "")
-            .toString()
-            .trim();
-
-        if (act) {
-            actividades.add(act);
-        }
-
-
-        // ==========================
-        // CIUDAD
-        // ==========================
-
-        const ciudad = (item.Ciudad || "")
-            .toString()
-            .trim();
-
-        if (ciudad) {
-            ciudades.add(ciudad);
-        }
-
-
-        // ==========================
-        // ZONA
-        // ==========================
-
-        const zona = (item.Zona_de_trabajo || "")
-            .toString()
-            .trim();
-
-        if (zona) {
-            zonas.add(zona);
-        }
+        const supervisor = (item.Supervisor || "").toString().trim();
+        if (supervisor) supervisores.add(supervisor);
     });
 
+    const ciudadesOrdenadas = Array.from(ciudades).sort((a, b) => a.localeCompare(b));
+    const zonasOrdenadas = Array.from(zonas).sort((a, b) => a.localeCompare(b));
+    const actividadesOrdenadas = Array.from(actividades).sort((a, b) => a.localeCompare(b));
+    const tecnicosOrdenados = Array.from(tecnicos).sort((a, b) => a.localeCompare(b));
+    const supervisoresOrdenados = Array.from(supervisores).sort((a, b) => a.localeCompare(b));
 
-    // ==========================
-    // ORDENAR
-    // ==========================
-
-    const anosOrdenados = Array
-        .from(anos)
-        .sort((a, b) => Number(b) - Number(a));
-
-    const ciudadesOrdenadas = Array
-        .from(ciudades)
-        .sort((a, b) => a.localeCompare(b));
-
-    const zonasOrdenadas = Array
-        .from(zonas)
-        .sort((a, b) => a.localeCompare(b));
-
-    const actividadesOrdenadas = Array
-        .from(actividades)
-        .sort((a, b) => a.localeCompare(b));
-
-
-    // ==========================
-    // CARGAR FILTROS
-    // ==========================
-    const añoActual = new Date().getFullYear().toString();
-    poblarMultiselect(
-        "multiselectAno",
-        "ano",
-        anosOrdenados,
-        true
-    );
-
-    poblarMultiselect(
-        "multiselectActividad",
-        "actividad",
-        actividadesOrdenadas
-    );
-
-    poblarMultiselect(
-        "multiselectZona",
-        "zona",
-        zonasOrdenadas
-    );
-
-    poblarMultiselect(
-        "multiselectCiudad",
-        "ciudad",
-        ciudadesOrdenadas
-    );
-
-
-    // ==========================
-    // MESES
-    // ==========================
-
-    const itemsMeses = ordenMeses.map(
-        (mesCorto, index) => ({
-            value: mesCorto,
-            text: ordenMesesCompletos[index]
-        })
-    );
-
-    poblarMultiselect(
-        "multiselectMes",
-        "mes",
-        itemsMeses
-    );
+    poblarMultiselect("multiselectActividad", "actividad", actividadesOrdenadas);
+    poblarMultiselect("multiselectZona", "zona", zonasOrdenadas);
+    poblarMultiselect("multiselectCiudad", "ciudad", ciudadesOrdenadas);
+    poblarMultiselect("multiselectTecnico", "tecnico", tecnicosOrdenados);
+    poblarMultiselect("multiselectSupervisor", "supervisor", supervisoresOrdenados);
 }
 
 // ==========================================
@@ -942,38 +900,19 @@ function aplicarFiltros() {
 
     filteredData = rawData.filter(item => {
 
-        const fechaObj = obtenerFechaObjeto(item);
-
-        const itemAno = fechaObj ? fechaObj.getFullYear().toString() : "";
-        const itemMes = fechaObj ? ordenMeses[fechaObj.getMonth()] : "";
         const itemAct = (item.Tipo_de_Actividad || "").toString().trim();
         const itemCiudad = (item.Ciudad || "").toString().trim();
         const itemZona = (item.Zona_de_trabajo || "").toString().trim();
+        const itemTecnico = (item.Tecnico || "").toString().trim();
+        const itemSupervisor = (item.Supervisor || "").toString().trim();
 
-        // AÑO (Mantiene selección única)
-        const totalAno = document.querySelectorAll("#multiselectAno .multiselect-options input").length;
-        const cumpleAno =
-            totalAno === 0 ||
-            filtroSelecciones.ano.length === 0 ||
-            filtroSelecciones.ano.includes(itemAno);
-
-        // MES
-        const totalMes = document.querySelectorAll("#multiselectMes .multiselect-options input").length;
-        const cumpleMes =
-            totalMes === 0 ||
-            filtroSelecciones.mes.length === 0 ||
-            filtroSelecciones.mes.length === totalMes || // <-- Agregado
-            filtroSelecciones.mes.includes(itemMes);
-
-        // ACTIVIDAD
         const totalAct = document.querySelectorAll("#multiselectActividad .multiselect-options input").length;
         const cumpleActividad =
             totalAct === 0 ||
             filtroSelecciones.actividad.length === 0 ||
-            filtroSelecciones.actividad.length === totalAct || // <-- Agregado
+            filtroSelecciones.actividad.length === totalAct ||
             filtroSelecciones.actividad.includes(itemAct);
 
-        // CIUDAD
         const totalCiudad = document.querySelectorAll("#multiselectCiudad .multiselect-options input").length;
         const cumpleCiudad =
             totalCiudad === 0 ||
@@ -981,44 +920,38 @@ function aplicarFiltros() {
             filtroSelecciones.ciudad.length === totalCiudad ||
             filtroSelecciones.ciudad.includes(itemCiudad);
 
-        // ZONA
         const totalZona = document.querySelectorAll("#multiselectZona .multiselect-options input").length;
         const cumpleZona =
             totalZona === 0 ||
             filtroSelecciones.zona.length === 0 ||
-            filtroSelecciones.zona.length === totalZona || // <-- Agregado
+            filtroSelecciones.zona.length === totalZona ||
             filtroSelecciones.zona.includes(itemZona);
 
+        const totalTecnico = document.querySelectorAll("#multiselectTecnico .multiselect-options input").length;
+        const cumpleTecnico =
+            totalTecnico === 0 ||
+            filtroSelecciones.tecnico.length === 0 ||
+            filtroSelecciones.tecnico.length === totalTecnico ||
+            filtroSelecciones.tecnico.includes(itemTecnico);
+
+        const totalSupervisor = document.querySelectorAll("#multiselectSupervisor .multiselect-options input").length;
+        const cumpleSupervisor =
+            totalSupervisor === 0 ||
+            filtroSelecciones.supervisor.length === 0 ||
+            filtroSelecciones.supervisor.length === totalSupervisor ||
+            filtroSelecciones.supervisor.includes(itemSupervisor);
+
         return (
-            cumpleAno &&
-            cumpleMes &&
             cumpleActividad &&
             cumpleCiudad &&
-            cumpleZona
+            cumpleZona &&
+            cumpleTecnico &&
+            cumpleSupervisor
         );
     });
 
     console.log("Filtros aplicados:", filtroSelecciones);
     console.log("Registros originales:", rawData.length);
-
-    const años = {};
-
-    rawData.forEach(x => {
-
-        const fecha = obtenerFechaObjeto(x);
-
-        if (!fecha) {
-            años["SIN_FECHA"] =
-                (años["SIN_FECHA"] || 0) + 1;
-            return;
-        }
-
-        const anio = fecha.getFullYear();
-
-        años[anio] = (años[anio] || 0) + 1;
-    });
-
-    console.log("Registros por año:", años);
 
     actualizarDashboard();
 }
@@ -1550,10 +1483,10 @@ function actualizarKPIsHoy(data, rango) {
     const duracionPorDia = {};
 
     datos.forEach(item => {
-        const f = typeof obtenerFechaObjeto === "function" 
-            ? obtenerFechaObjeto(item) 
+        const f = typeof obtenerFechaObjeto === "function"
+            ? obtenerFechaObjeto(item)
             : (item.Fecha ? new Date(item.Fecha) : null);
-            
+
         if (!f || f < fechaInicioRango) return;
 
         const estadoRaw = String(obtenerProp(item, "Estado", "estado") ?? "").trim().toLowerCase();
@@ -1653,85 +1586,102 @@ function actualizarKPIsHoy(data, rango) {
 // =====================================================
 // 3. ACTUALIZAR KPIS ALTAS (RESTAURADA)
 // =====================================================
-function actualizarKPIsAltas(data) {
+function actualizarKPIsAltas(data, rango) {
     const datos = Array.isArray(data) ? data : [];
+
+    const rangoActivo = rango || obtenerRangoAltasActivo();
+    const fechaInicioRango = rangoActivo.inicio;
+    const cantidadDias = rangoActivo.cantidadDias;
+
     let completadas = 0;
     let noRealizadas = 0;
-    let duracionTotalSum = 0;
-    let duracionConteo = 0;
+
+    const rguPorDia = {};
+    const duracionPorDia = {};
+
+    for (let i = 0; i < cantidadDias; i++) {
+        const fecha = new Date(fechaInicioRango);
+        fecha.setDate(fecha.getDate() + i);
+        const key =
+            `${fecha.getFullYear()}-` +
+            `${String(fecha.getMonth() + 1).padStart(2, "0")}-` +
+            `${String(fecha.getDate()).padStart(2, "0")}`;
+
+        rguPorDia[key] = {};
+        duracionPorDia[key] = { suma: 0, cantidad: 0 };
+    }
+
+    datos.forEach(item => {
+        const tipo = String(item.Tipo_de_Actividad ?? "").trim().toLowerCase();
+        if (tipo !== "alta" && tipo !== "alta traslado" && tipo !== "migración" && tipo !== "migracion") return;
+
+        const fechaRaw = item.Origen || item.Fecha;
+        if (!fechaRaw) return;
+
+        const rawStr = String(fechaRaw).trim();
+        const key = rawStr.length >= 10 ? rawStr.substring(0, 10) : "";
+        if (!Object.prototype.hasOwnProperty.call(rguPorDia, key)) return;
+
+        const estado = String(item.Estado ?? "").trim().toLowerCase();
+
+        if (estado === "completado") {
+            completadas++;
+
+            const inicio = item.Inicio ?? item.Hora_Inicio;
+            const fin = item.Fin ?? item.Hora_Fin;
+            const diferencia = obtenerDiferenciaTiempo(inicio, fin);
+
+            if (diferencia !== null && !isNaN(diferencia) && diferencia >= 0 && diferencia < 720) {
+                duracionPorDia[key].suma += diferencia;
+                duracionPorDia[key].cantidad++;
+            }
+        } else if (estado === "no realizada") {
+            noRealizadas++;
+        }
+
+        if (estado !== "completado" && estado !== "no realizada") return;
+
+        let rgu = item.RGU ?? 0;
+        if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
+        rgu = Number(rgu) || 0;
+
+        let tecnico = String(item.Tecnico ?? "").trim().toUpperCase();
+        if (!tecnico) return;
+        tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        rguPorDia[key][tecnico] = (rguPorDia[key][tecnico] || 0) + rgu;
+    });
 
     const valoresRGU = [];
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    const valoresDuracion = [];
 
-    for (let i = 29; i >= 0; i--) {
-        const fecha = new Date(hoy);
-        fecha.setDate(fecha.getDate() - i);
-        const year = fecha.getFullYear();
-        const month = String(fecha.getMonth() + 1).padStart(2, "0");
-        const day = String(fecha.getDate()).padStart(2, "0");
-        const key = `${year}-${month}-${day}`;
+    Object.keys(rguPorDia).forEach(key => {
+        const tecnicosDia = rguPorDia[key];
+        const listaTecnicos = Object.keys(tecnicosDia);
 
-        const tecnicos = {};
-
-        datos.forEach(item => {
-            const tipo = String(item.Tipo_de_Actividad ?? "").trim().toLowerCase();
-            if (tipo !== "alta" && tipo !== "alta traslado" && tipo !== "migración" && tipo !== "migracion") return;
-
-            const fechaRaw = item.Origen || item.Fecha;
-            if (!fechaRaw) return;
-
-            const rawStr = String(fechaRaw).trim();
-            const itemKey = rawStr.length >= 10 ? rawStr.substring(0, 10) : "";
-            if (itemKey !== key) return;
-
-            const estado = String(item.Estado ?? "").trim().toLowerCase();
-
-            if (estado === "completado") {
-                completadas++;
-                const inicio = item.Inicio ?? item.Hora_Inicio;
-                const fin = item.Fin ?? item.Hora_Fin;
-                const diferencia = obtenerDiferenciaTiempo(inicio, fin);
-
-                if (diferencia !== null && !isNaN(diferencia) && diferencia >= 0 && diferencia < 720) {
-                    duracionTotalSum += diferencia;
-                    duracionConteo++;
-                }
-            } else if (estado === "no realizada") {
-                noRealizadas++;
-            }
-
-            if (estado !== "completado" && estado !== "no realizada") return;
-
-            let rgu = item.RGU ?? 0;
-            if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
-            rgu = Number(rgu) || 0;
-
-            let tecnico = String(item.Tecnico ?? "").trim().toUpperCase();
-            if (!tecnico) return;
-            tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-            if (!tecnicos[tecnico]) tecnicos[tecnico] = 0;
-            tecnicos[tecnico] += rgu;
-        });
-
-        const listaTecnicos = Object.keys(tecnicos);
         let promedioDia = 0;
         if (listaTecnicos.length > 0) {
-            let suma = 0;
-            listaTecnicos.forEach(tecnico => { suma += tecnicos[tecnico]; });
+            const suma = listaTecnicos.reduce((acc, tec) => acc + tecnicosDia[tec], 0);
             promedioDia = suma / listaTecnicos.length;
         }
         valoresRGU.push(Number(promedioDia.toFixed(1)));
-    }
 
-    let rguPromedio = valoresRGU.length > 0
-        ? valoresRGU.reduce((acc, val) => acc + val, 0) / valoresRGU.length
+        const diaDuracion = duracionPorDia[key];
+        const promedioDuracionDia = diaDuracion.cantidad > 0
+            ? diaDuracion.suma / diaDuracion.cantidad
+            : 0;
+        valoresDuracion.push(promedioDuracionDia);
+    });
+
+    const rguPromedio = cantidadDias > 0
+        ? valoresRGU.reduce((acc, val) => acc + val, 0) / cantidadDias
         : 0;
 
     const total = completadas + noRealizadas;
     const efectividad = total > 0 ? (completadas / total) * 100 : 0;
-    const duracionPromedio = duracionConteo > 0 ? Math.round(duracionTotalSum / duracionConteo) : 0;
+
+    const sumaDuracion = valoresDuracion.reduce((acc, val) => acc + val, 0);
+    const duracionPromedio = cantidadDias > 0 ? Math.round(sumaDuracion / cantidadDias) : 0;
 
     const horas = Math.floor(duracionPromedio / 60);
     const minutos = duracionPromedio % 60;
@@ -3842,6 +3792,21 @@ function convertirMinutosHHMM(minutos) {
 // CAMBIO DE VISTA
 // ==========================================
 
+function actualizarVistaAltas() {
+
+    const data = obtenerDatosFiltrados();
+
+    console.log("🟣 ALTAS:", data.length);
+
+    const rango = obtenerRangoAltasActivo();
+
+    actualizarKPIsAltas(data, rango);
+
+    crearGraficoHoyProduccionAltas(data, rango);
+    crearGraficoHoyRGUAltas(data, rango);
+    crearGraficoHoyDuracionAltas(data, rango);
+}
+
 function cambiarVista(vista, btnElement) {
 
     vistaActual = vista;
@@ -3897,27 +3862,7 @@ function cambiarVista(vista, btnElement) {
             .getElementById("viewAltas")
             ?.classList.remove("hidden");
 
-
-        // IMPORTANTE:
-        // Obtener nuevamente los datos filtrados
-        const data =
-            obtenerDatosFiltrados();
-
-
-        console.log(
-            "🟣 ALTAS:",
-            data.length
-        );
-
-
-        // KPIs de Altas
-        actualizarKPIsAltas(data);
-
-
-        // Gráficos de Altas
-        crearGraficoHoyProduccionAltas(data);
-        crearGraficoHoyRGUAltas(data);
-        crearGraficoHoyDuracionAltas(data);
+        actualizarVistaAltas();
 
     }
 
@@ -3980,20 +3925,25 @@ function cambiarVista(vista, btnElement) {
 // rango; si no, por defecto son los últimos
 // 30 días terminando hoy.
 // ==========================================
-function obtenerRangoHoyActivo() {
+
+
+
+// ==========================================
+// CÁLCULO GENÉRICO DE RANGO ACTIVO
+// ==========================================
+function calcularRangoActivo(seleccion) {
 
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    if (rangoFechasHoy.desde && rangoFechasHoy.hasta) {
+    if (seleccion && seleccion.desde && seleccion.hasta) {
 
-        let inicio = new Date(rangoFechasHoy.desde);
+        let inicio = new Date(seleccion.desde);
         inicio.setHours(0, 0, 0, 0);
 
-        let fin = new Date(rangoFechasHoy.hasta);
+        let fin = new Date(seleccion.hasta);
         fin.setHours(0, 0, 0, 0);
 
-        // Por si el usuario elige "Hasta" antes que "Desde"
         if (inicio > fin) {
             [inicio, fin] = [fin, inicio];
         }
@@ -4010,6 +3960,15 @@ function obtenerRangoHoyActivo() {
 
     return { inicio, fin: hoy, cantidadDias: 30 };
 }
+
+function obtenerRangoHoyActivo() {
+    return calcularRangoActivo(rangoFechasHoy);
+}
+
+function obtenerRangoAltasActivo() {
+    return calcularRangoActivo(rangoFechasAltas);
+}
+
 
 function obtenerDatosEnRango(data, fechaInicio, fechaFin) {
 
@@ -4093,43 +4052,18 @@ function actualizarVistaHoy() {
 }
 
 function obtenerDatosFiltrados() {
-    const totalAno = document.querySelectorAll("#multiselectAno .multiselect-options input").length;
-    const totalMes = document.querySelectorAll("#multiselectMes .multiselect-options input").length;
     const totalActividad = document.querySelectorAll("#multiselectActividad .multiselect-options input").length;
     const totalCiudad = document.querySelectorAll("#multiselectCiudad .multiselect-options input").length;
     const totalZona = document.querySelectorAll("#multiselectZona .multiselect-options input").length;
-
-    // Nombres exactos como vienen en el multiselect
-    const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    const totalTecnico = document.querySelectorAll("#multiselectTecnico .multiselect-options input").length;
+    const totalSupervisor = document.querySelectorAll("#multiselectSupervisor .multiselect-options input").length;
 
     const resultado = rawData.filter(item => {
-        const fechaRaw = String(item.Fecha || item.Origen || "").trim();
-        let itemAno = "";
-        let itemMes = "";
-
-        // Extraer YYYY y MM directamente del texto para evitar problemas de zona horaria (UTC)
-        const match = fechaRaw.match(/^(\d{4})-(\d{2})/);
-        if (match) {
-            itemAno = match[1];
-            const numMes = parseInt(match[2], 10) - 1; // Convertir 01-12 a índice 0-11
-            itemMes = nombresMeses[numMes] || "";
-        }
-
         const itemActividad = String(item.Tipo_de_Actividad ?? "").trim();
         const itemCiudad = String(item.Ciudad ?? "").trim();
         const itemZona = String(item.Zona_de_trabajo ?? "").trim();
-
-        const cumpleAno =
-            totalAno === 0 ||
-            filtroSelecciones.ano.length === 0 ||
-            filtroSelecciones.ano.length === totalAno ||
-            filtroSelecciones.ano.includes(itemAno);
-
-        const cumpleMes =
-            totalMes === 0 ||
-            filtroSelecciones.mes.length === 0 ||
-            filtroSelecciones.mes.length === totalMes ||
-            filtroSelecciones.mes.includes(itemMes);
+        const itemTecnico = String(item.Tecnico ?? "").trim();
+        const itemSupervisor = String(item.Supervisor ?? "").trim();
 
         const cumpleActividad =
             totalActividad === 0 ||
@@ -4149,12 +4083,24 @@ function obtenerDatosFiltrados() {
             filtroSelecciones.zona.length === totalZona ||
             filtroSelecciones.zona.includes(itemZona);
 
+        const cumpleTecnico =
+            totalTecnico === 0 ||
+            filtroSelecciones.tecnico.length === 0 ||
+            filtroSelecciones.tecnico.length === totalTecnico ||
+            filtroSelecciones.tecnico.includes(itemTecnico);
+
+        const cumpleSupervisor =
+            totalSupervisor === 0 ||
+            filtroSelecciones.supervisor.length === 0 ||
+            filtroSelecciones.supervisor.length === totalSupervisor ||
+            filtroSelecciones.supervisor.includes(itemSupervisor);
+
         return (
-            cumpleAno &&
-            cumpleMes &&
             cumpleActividad &&
             cumpleCiudad &&
-            cumpleZona
+            cumpleZona &&
+            cumpleTecnico &&
+            cumpleSupervisor
         );
     });
 
@@ -5626,14 +5572,17 @@ function moverScrollGraficosAlFinal() {
 
 //-----------------------------------------
 // 3 Graficos diarios filtrados por:  Alta - Traslado - Migración
-function crearGraficoHoyProduccionAltas(data) {
+function crearGraficoHoyProduccionAltas(data, rango) {
     const labels = [];
     const porcentajes = [];
-    const hoy = new Date();
 
-    for (let i = 29; i >= 0; i--) {
-        const fecha = new Date(hoy);
-        fecha.setDate(fecha.getDate() - i);
+    const rangoActivo = rango || obtenerRangoAltasActivo();
+    const fechaInicioRango = rangoActivo.inicio;
+    const cantidadDias = rangoActivo.cantidadDias;
+
+    for (let i = 0; i < cantidadDias; i++) {
+        const fecha = new Date(fechaInicioRango);
+        fecha.setDate(fecha.getDate() + i);
         fecha.setHours(0, 0, 0, 0);
 
         const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
@@ -5726,19 +5675,18 @@ function crearGraficoHoyProduccionAltas(data) {
     }, 150);
 }
 
-function crearGraficoHoyRGUAltas(data) {
+function crearGraficoHoyRGUAltas(data, rango) {
     const labels = [];
     const valores = [];
 
-    // 1. Fijar medianoche local para evitar saltos de zona horaria
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    const rangoActivo = rango || obtenerRangoAltasActivo();
+    const fechaInicioRango = rangoActivo.inicio;
+    const cantidadDias = rangoActivo.cantidadDias;
 
-    for (let i = 29; i >= 0; i--) {
-        const fecha = new Date(hoy);
-        fecha.setDate(fecha.getDate() - i);
+    for (let i = 0; i < cantidadDias; i++) {
+        const fecha = new Date(fechaInicioRango);
+        fecha.setDate(fecha.getDate() + i);
 
-        // Clave YYYY-MM-DD
         const year = fecha.getFullYear();
         const month = String(fecha.getMonth() + 1).padStart(2, '0');
         const day = String(fecha.getDate()).padStart(2, '0');
@@ -5747,11 +5695,9 @@ function crearGraficoHoyRGUAltas(data) {
         const tecnicos = {};
 
         data.forEach(item => {
-            // Filtro por Tipo de Actividad
             const tipo = (item.Tipo_de_Actividad || "").toString().trim().toLowerCase();
             if (tipo !== "alta" && tipo !== "alta traslado" && tipo !== "migración" && tipo !== "migracion") return;
 
-            // Extracción segura de fecha YYYY-MM-DD
             const fechaRaw = item.Origen || item.Fecha;
             if (!fechaRaw) return;
 
@@ -5759,16 +5705,13 @@ function crearGraficoHoyRGUAltas(data) {
             const itemKey = rawStr.length >= 10 ? rawStr.substring(0, 10) : "";
             if (itemKey !== key) return;
 
-            // Filtro de Estado (coincide con el WHERE de SQL)
             const estado = (item.Estado || "").toString().trim().toLowerCase();
             if (estado !== "completado" && estado !== "no realizada") return;
 
-            // Normalización de Técnico: Mayúsculas y sin acentos
             let tecnico = (item.Tecnico || "").toString().trim().toUpperCase();
             if (!tecnico) return;
             tecnico = tecnico.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-            // Parsear RGU
             let rgu = item.RGU ?? 0;
             if (typeof rgu === "string") rgu = rgu.replace(",", ".").trim();
             rgu = Number(rgu) || 0;
@@ -5855,14 +5798,17 @@ function crearGraficoHoyRGUAltas(data) {
     }, 150);
 }
 
-function crearGraficoHoyDuracionAltas(data) {
+function crearGraficoHoyDuracionAltas(data, rango) {
     const labels = [];
     const valores = [];
-    const hoy = new Date();
 
-    for (let i = 29; i >= 0; i--) {
-        const fecha = new Date(hoy);
-        fecha.setDate(fecha.getDate() - i);
+    const rangoActivo = rango || obtenerRangoAltasActivo();
+    const fechaInicioRango = rangoActivo.inicio;
+    const cantidadDias = rangoActivo.cantidadDias;
+
+    for (let i = 0; i < cantidadDias; i++) {
+        const fecha = new Date(fechaInicioRango);
+        fecha.setDate(fecha.getDate() + i);
         fecha.setHours(0, 0, 0, 0);
 
         const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;

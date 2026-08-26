@@ -779,3 +779,31 @@ button:hover {
         padding: 16px;
     }
 }
+
+/* Estilos para inputs de fecha integrados al diseño */
+.date-input {
+    width: 160px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #334155;
+    font-family: inherit;
+    box-sizing: border-box;
+    outline: none;
+    height: 38px; /* Iguala la altura a tus botones e inputs */
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.date-input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+/* Opcional: Reemplazar el bloque antiguo `.rango-fechas-hoy` si deseas agruparlos horizontalmente juntos */
+.rango-fechas-container {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
