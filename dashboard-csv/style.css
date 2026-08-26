@@ -691,18 +691,18 @@ button:hover {
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: 8px;
-    direction: ltr;
 }
 
 .chart-content {
     position: relative;
-    width: 1500px;
     height: 200px;
+    width: 100%; /* Siempre ocupa el 100% de la tarjeta por defecto */
 }
 
+/* Dejamos que el canvas siga al contenedor sin deformarse */
 .chart-content canvas {
-    width: 1500px !important;
-    height: 210px !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 /* Scroll más limpio */

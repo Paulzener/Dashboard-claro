@@ -4671,11 +4671,14 @@ function crearGraficoHoyProduccion(data, rango) {
         porcentajes.push(porcentaje);
     }
 
-    const canvas =
-        document.getElementById("chartHoy1");
-
-
+    const canvas = document.getElementById("chartHoy1");
     if (!canvas) return;
+
+    // --- PEGA ESTO AQUÍ ---
+    const minWidth1 = labels.length * 55; 
+    canvas.parentElement.style.width = '100%'; 
+    canvas.parentElement.style.minWidth = minWidth1 + 'px'; 
+    // ----------------------
 
     if (chartHoy1Instance) {
         chartHoy1Instance.destroy();
@@ -5105,24 +5108,23 @@ function crearGraficoHoyRGU(data, rango) {
     // RENDERIZAR GRÁFICO
     // =====================================================
 
-    const canvas =
-        document.getElementById(
-            "chartHoy2"
-        );
+    // =====================================================
+    // RENDERIZAR GRÁFICO
+    // =====================================================
+    const canvas = document.getElementById("chartHoy2");
 
     if (!canvas) {
         return;
     }
 
+    // --- PEGA ESTO AQUÍ ---
+    const minWidth2 = labels.length * 55; 
+    canvas.parentElement.style.width = '100%'; 
+    canvas.parentElement.style.minWidth = minWidth2 + 'px'; 
+    // ----------------------
 
-    if (
-        typeof chartHoy2Instance !==
-        "undefined" &&
-        chartHoy2Instance
-    ) {
-
+    if (typeof chartHoy2Instance !== "undefined" && chartHoy2Instance) {
         chartHoy2Instance.destroy();
-
     }
 
 
@@ -5395,10 +5397,14 @@ function crearGraficoHoyDuracion(data, rango) {
         valores.push(promedio);
     }
 
-    const canvas =
-        document.getElementById("chartHoy3");
-
+    const canvas = document.getElementById("chartHoy3");
     if (!canvas) return;
+
+    // --- PEGA ESTO AQUÍ ---
+    const minWidth3 = labels.length * 55; 
+    canvas.parentElement.style.width = '100%'; 
+    canvas.parentElement.style.minWidth = minWidth3 + 'px'; 
+    // ----------------------
 
     if (chartHoy3Instance) {
         chartHoy3Instance.destroy();
@@ -5586,6 +5592,11 @@ function crearGraficoHoyProduccionAltas(data, rango) {
     const canvas = document.getElementById("chartHoyAltas1");
     if (!canvas) return;
 
+    // NUEVA LÓGICA: Usamos minWidth en lugar de width
+    const minWidth1 = labels.length * 55; // 55 píxeles por día
+    canvas.parentElement.style.width = '100%'; // Reseteamos por si acaso
+    canvas.parentElement.style.minWidth = minWidth1 + 'px'; // Aplicamos el mínimo
+
     if (window.chartHoyAltas1Instance) {
         window.chartHoyAltas1Instance.destroy();
     }
@@ -5709,6 +5720,11 @@ function crearGraficoHoyRGUAltas(data, rango) {
     const canvas = document.getElementById("chartHoyAltas2");
     if (!canvas) return;
 
+    // NUEVA LÓGICA: Usamos minWidth en lugar de width
+    const minWidth2 = labels.length * 55; 
+    canvas.parentElement.style.width = '100%'; 
+    canvas.parentElement.style.minWidth = minWidth2 + 'px'; 
+
     if (window.chartHoyAltas2Instance) {
         window.chartHoyAltas2Instance.destroy();
     }
@@ -5818,6 +5834,11 @@ function crearGraficoHoyDuracionAltas(data, rango) {
     const canvas = document.getElementById("chartHoyAltas3");
     if (!canvas) return;
 
+    // NUEVA LÓGICA: Usamos minWidth en lugar de width
+    const minWidth3 = labels.length * 55; 
+    canvas.parentElement.style.width = '100%'; 
+    canvas.parentElement.style.minWidth = minWidth3 + 'px'; 
+
     if (window.chartHoyAltas3Instance) {
         window.chartHoyAltas3Instance.destroy();
     }
@@ -5878,3 +5899,6 @@ function crearGraficoHoyDuracionAltas(data, rango) {
         if (scroll) scroll.scrollLeft = scroll.scrollWidth;
     }, 150);
 }
+
+//----------------------------------------------------
+
