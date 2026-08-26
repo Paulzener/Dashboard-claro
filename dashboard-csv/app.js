@@ -76,8 +76,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const inputRangoDesde = document.getElementById("rangoHoyDesde");
     const inputRangoHasta = document.getElementById("rangoHoyHasta");
-    const btnAplicarRangoHoy = document.getElementById("aplicarRangoHoy");
-    const btnResetRangoHoy = document.getElementById("resetRangoHoy");
+    const btnAplicarRangoHoy = document.getElementById("applyAllFilters");
+    const btnResetRangoHoy = document.getElementById("clearFilters");
 
     btnAplicarRangoHoy?.addEventListener("click", () => {
 
