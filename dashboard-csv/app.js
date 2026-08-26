@@ -73,128 +73,73 @@ if (typeof ChartDataLabels !== "undefined") {
 document.addEventListener("DOMContentLoaded", () => {
 
     cargarDatosDesdeAPI();
-
     inicializarMultiselects();
 
     // ==========================
-    // RANGO DE FECHAS - VISTA HOY
+    // RANGO DE FECHAS (GLOBAL)
     // ==========================
-    const inputRangoAltasDesde = document.getElementById("rangoAltasDesde");
-    const inputRangoAltasHasta = document.getElementById("rangoAltasHasta");
-    const btnAplicarRangoAltas = document.getElementById("aplicarRangoAltas");
-    const btnResetRangoAltas = document.getElementById("resetRangoAltas");
-
     const inputRangoDesde = document.getElementById("rangoHoyDesde");
     const inputRangoHasta = document.getElementById("rangoHoyHasta");
-    const btnAplicarRangoHoy = document.getElementById("applyAllFilters");
-    const btnResetRangoHoy = document.getElementById("clearFilters");
+    const btnApplyAll = document.getElementById("applyAllFilters");
+    const btnClearAll = document.getElementById("clearFilters");
 
+    // 1. EVENTO APLICAR TODOS LOS FILTROS
+    btnApplyAll?.addEventListener("click", () => {
+        
+        // Si hay fechas seleccionadas, las capturamos y guardamos
+        if (inputRangoDesde?.value && inputRangoHasta?.value) {
+            const [anoD, mesD, diaD] = inputRangoDesde.value.split("-").map(Number);
+            const [anoH, mesH, diaH] = inputRangoHasta.value.split("-").map(Number);
 
-    btnResetRangoAltas?.addEventListener("click", () => {
+            const fechaInicio = new Date(anoD, mesD - 1, diaD);
+            const fechaFin = new Date(anoH, mesH - 1, diaH);
 
-        rangoFechasAltas.desde = null;
-        rangoFechasAltas.hasta = null;
-
-        if (inputRangoAltasDesde) inputRangoAltasDesde.value = "";
-        if (inputRangoAltasHasta) inputRangoAltasHasta.value = "";
-
-        if (vistaActual === "altas") {
-            actualizarVistaAltas();
-        }
-    });
-
-    btnAplicarRangoHoy?.addEventListener("click", () => {
-
-        if (!inputRangoDesde?.value || !inputRangoHasta?.value) {
-            alert("Selecciona una fecha de inicio y una de fin.");
+            // Se asignan las mismas fechas para ambas vistas para mantener sincronía
+            rangoFechasHoy.desde = fechaInicio;
+            rangoFechasHoy.hasta = fechaFin;
+            
+            rangoFechasAltas.desde = fechaInicio;
+            rangoFechasAltas.hasta = fechaFin;
+        } else if (inputRangoDesde?.value || inputRangoHasta?.value) {
+            // Si llenaron solo uno de los dos inputs
+            alert("Por favor, selecciona tanto una fecha de inicio como una de fin.");
             return;
         }
 
-        // Los inputs type="date" entregan "YYYY-MM-DD"
-        const [anoD, mesD, diaD] = inputRangoDesde.value.split("-").map(Number);
-        const [anoH, mesH, diaH] = inputRangoHasta.value.split("-").map(Number);
-
-        rangoFechasHoy.desde = new Date(anoD, mesD - 1, diaD);
-        rangoFechasHoy.hasta = new Date(anoH, mesH - 1, diaH);
-
-        if (vistaActual === "hoy") {
-            actualizarVistaHoy();
+        // Ejecutamos tu función principal que aplica multiselects y refresca el dashboard
+        if (typeof aplicarTodosLosFiltros === "function") {
+            aplicarTodosLosFiltros();
         }
     });
 
-    btnResetRangoHoy?.addEventListener("click", () => {
-
-        rangoFechasHoy.desde = null;
-        rangoFechasHoy.hasta = null;
-
+    // 2. EVENTO LIMPIAR FILTROS
+    btnClearAll?.addEventListener("click", () => {
+        
+        // Limpiamos los campos visuales de fecha en el HTML
         if (inputRangoDesde) inputRangoDesde.value = "";
         if (inputRangoHasta) inputRangoHasta.value = "";
 
-        if (vistaActual === "hoy") {
-            actualizarVistaHoy();
-        }
-    });
-    btnAplicarRangoAltas?.addEventListener("click", () => {
-
-        if (!inputRangoAltasDesde?.value || !inputRangoAltasHasta?.value) {
-            alert("Selecciona una fecha de inicio y una de fin.");
-            return;
-        }
-
-        const [anoD, mesD, diaD] = inputRangoAltasDesde.value.split("-").map(Number);
-        const [anoH, mesH, diaH] = inputRangoAltasHasta.value.split("-").map(Number);
-
-        rangoFechasAltas.desde = new Date(anoD, mesD - 1, diaD);
-        rangoFechasAltas.hasta = new Date(anoH, mesH - 1, diaH);
-
-        if (vistaActual === "altas") {
-            actualizarVistaAltas();
-        }
-    });
-
-    btnResetRangoAltas?.addEventListener("click", () => {
-
+        // Reiniciamos las variables en memoria a null
+        rangoFechasHoy.desde = null;
+        rangoFechasHoy.hasta = null;
+        
         rangoFechasAltas.desde = null;
         rangoFechasAltas.hasta = null;
 
-        if (inputRangoAltasDesde) inputRangoAltasDesde.value = "";
-        if (inputRangoAltasHasta) inputRangoAltasHasta.value = "";
-
-        if (vistaActual === "altas") {
-            actualizarVistaAltas();
+        // Ejecutamos tu función principal de limpieza de multiselects y gráficos
+        if (typeof limpiarFiltros === "function") {
+            limpiarFiltros();
         }
     });
-
-
-    document
-        .getElementById("applyAllFilters")
-        ?.addEventListener(
-            "click",
-            aplicarTodosLosFiltros
-        );
-
-    document
-        .getElementById("clearFilters")
-        ?.addEventListener(
-            "click",
-            limpiarFiltros
-        );
-
 
     // ==========================
     // BOTÓN MOSTRAR/OCULTAR FILTROS
     // ==========================
-
-    const toggleFiltersBtn =
-        document.getElementById("toggleFiltersBtn");
-
-    const filters =
-        document.getElementById("filters");
+    const toggleFiltersBtn = document.getElementById("toggleFiltersBtn");
+    const filters = document.getElementById("filters");
 
     toggleFiltersBtn?.addEventListener("click", () => {
-
         filters?.classList.toggle("is-open");
-
         toggleFiltersBtn.classList.toggle("active");
     });
 });
@@ -1076,6 +1021,12 @@ function actualizarDashboard() {
 
         actualizarVistaHoy();
 
+        return;
+    }
+
+    // Si estamos en ALTAS (¡Faltaba esta condición!)
+    if (vistaActual === "altas") {
+        actualizarVistaAltas();
         return;
     }
 
@@ -3793,18 +3744,35 @@ function convertirMinutosHHMM(minutos) {
 // ==========================================
 
 function actualizarVistaAltas() {
+    
+    // 1. Usar los datos globales ya filtrados por los multiselects (Actividad, Zona, etc.)
+    const datosFiltrados = filteredData; 
 
-    const data = obtenerDatosFiltrados();
-
-    console.log("🟣 ALTAS:", data.length);
-
+    // 2. Obtener el rango de fechas activo para la vista altas
     const rango = obtenerRangoAltasActivo();
 
-    actualizarKPIsAltas(data, rango);
+    // 3. Filtrar los datos específicamente por ese rango de fechas
+    const datosVistaAltas = obtenerDatosEnRango(
+        datosFiltrados,
+        rango.inicio,
+        rango.fin
+    );
 
-    crearGraficoHoyProduccionAltas(data, rango);
-    crearGraficoHoyRGUAltas(data, rango);
-    crearGraficoHoyDuracionAltas(data, rango);
+    console.log("🟣 ALTAS:", datosVistaAltas.length);
+
+    // 4. Enviar la data completamente filtrada a los KPIs y gráficos
+    actualizarKPIsAltas(datosVistaAltas, rango);
+
+    // Es buena práctica verificar que las funciones existan antes de llamarlas
+    if (typeof crearGraficoHoyProduccionAltas === "function") {
+        crearGraficoHoyProduccionAltas(datosVistaAltas, rango);
+    }
+    if (typeof crearGraficoHoyRGUAltas === "function") {
+        crearGraficoHoyRGUAltas(datosVistaAltas, rango);
+    }
+    if (typeof crearGraficoHoyDuracionAltas === "function") {
+        crearGraficoHoyDuracionAltas(datosVistaAltas, rango);
+    }
 }
 
 function cambiarVista(vista, btnElement) {
@@ -3970,24 +3938,23 @@ function obtenerRangoAltasActivo() {
 }
 
 
-function obtenerDatosEnRango(data, fechaInicio, fechaFin) {
+function obtenerDatosEnRango(datos, fechaInicio, fechaFin) {
+    // Si no hay fechas definidas, devolvemos todos los datos
+    if (!fechaInicio || !fechaFin) return datos;
 
-    return data.filter(item => {
+    // Convertimos los inputs a objetos Date
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    
+    // Ajustamos el final para que incluya hasta el último minuto de ese día (opcional pero recomendado)
+    fin.setHours(23, 59, 59, 999);
 
-        const fecha = obtenerFechaObjeto(item);
-
-        if (!fecha) {
-            return false;
-        }
-
-        const fechaItem = new Date(fecha);
-
-        fechaItem.setHours(0, 0, 0, 0);
-
-        return (
-            fechaItem >= fechaInicio &&
-            fechaItem <= fechaFin
-        );
+    return datos.filter(item => {
+        // ⚠️ CAMBIA "item.Fecha" por el nombre exacto de la columna de fecha en tu base de datos o JSON
+        const fechaItem = new Date(item.Fecha); 
+        
+        // Comparamos
+        return fechaItem >= inicio && fechaItem <= fin;
     });
 }
 
