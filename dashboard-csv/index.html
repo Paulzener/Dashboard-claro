@@ -184,6 +184,18 @@
                     </div>
                 </div>
             </div>
+            <div class="rango-fechas-hoy">
+                <label>
+                    Desde:
+                    <input type="date" id="rangoHoyDesde">
+                </label>
+                <label>
+                    Hasta:
+                    <input type="date" id="rangoHoyHasta">
+                </label>
+                <button id="aplicarRangoHoy" type="button">Aplicar rango</button>
+                <button id="resetRangoHoy" type="button">Últimos 30 días</button>
+            </div>
 
 
             <button id="applyAllFilters" class="btn-apply-all ">▶ Aplicar</button>
@@ -232,10 +244,14 @@
 
         <!-- Botones Píldora -->
         <div class="tabs-navigation "">
-            <button class="tab-btn active " style="margin-right: 5px;" onclick="cambiarVista('hoy', this)">Diarios (Global)</button>
-            <button class="tab-btn active" style="margin-top: 1rem; margin-right: 5px;" onclick="cambiarVista('altas', this)">Diarios Alt/ Tras/ Mig</button>
-            <button class="tab-btn" style="margin-top: 1rem; margin-right: 5px;" onclick="cambiarVista('historico', this)">Histórico</button>
-            <button class="tab-btn" style="margin-top: 1rem; margin-right: 5px;" onclick="cambiarVista('detalles', this)">Detalles</button>
+            <button class=" tab-btn active " style=" margin-right: 5px;" onclick="cambiarVista('hoy', this)">Diarios
+            (Global)</button>
+            <button class="tab-btn active" style="margin-top: 1rem; margin-right: 5px;"
+                onclick="cambiarVista('altas', this)">Diarios Alt/ Tras/ Mig</button>
+            <button class="tab-btn" style="margin-top: 1rem; margin-right: 5px;"
+                onclick="cambiarVista('historico', this)">Histórico</button>
+            <button class="tab-btn" style="margin-top: 1rem; margin-right: 5px;"
+                onclick="cambiarVista('detalles', this)">Detalles</button>
         </div>
 
         <!-- VISTA 1: HOY -->
@@ -281,7 +297,7 @@
             </div>
 
         </div>
-        
+
         <!-- Vista Diarios (Altas) -->
         <div id="viewAltas" class="tab-view hidden" style="padding-top: 2rem;">
 

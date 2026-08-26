@@ -34,7 +34,12 @@ let chartHoy3Instance = null;
 
 // Datos utilizados por la vista actual
 let datosHoyGlobal = [];
-
+// RANGO DE FECHAS PERSONALIZADO (VISTA HOY)
+// ==========================================
+let rangoFechasHoy = {
+    desde: null, // Date | null -> null significa "usar últimos 30 días"
+    hasta: null
+};
 const ordenMeses = [
     "Ene", "Feb", "Mar", "Abr", "May", "Jun",
     "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
@@ -64,6 +69,47 @@ document.addEventListener("DOMContentLoaded", () => {
     cargarDatosDesdeAPI();
 
     inicializarMultiselects();
+
+    // ==========================
+    // RANGO DE FECHAS - VISTA HOY
+    // ==========================
+
+    const inputRangoDesde = document.getElementById("rangoHoyDesde");
+    const inputRangoHasta = document.getElementById("rangoHoyHasta");
+    const btnAplicarRangoHoy = document.getElementById("aplicarRangoHoy");
+    const btnResetRangoHoy = document.getElementById("resetRangoHoy");
+
+    btnAplicarRangoHoy?.addEventListener("click", () => {
+
+        if (!inputRangoDesde?.value || !inputRangoHasta?.value) {
+            alert("Selecciona una fecha de inicio y una de fin.");
+            return;
+        }
+
+        // Los inputs type="date" entregan "YYYY-MM-DD"
+        const [anoD, mesD, diaD] = inputRangoDesde.value.split("-").map(Number);
+        const [anoH, mesH, diaH] = inputRangoHasta.value.split("-").map(Number);
+
+        rangoFechasHoy.desde = new Date(anoD, mesD - 1, diaD);
+        rangoFechasHoy.hasta = new Date(anoH, mesH - 1, diaH);
+
+        if (vistaActual === "hoy") {
+            actualizarVistaHoy();
+        }
+    });
+
+    btnResetRangoHoy?.addEventListener("click", () => {
+
+        rangoFechasHoy.desde = null;
+        rangoFechasHoy.hasta = null;
+
+        if (inputRangoDesde) inputRangoDesde.value = "";
+        if (inputRangoHasta) inputRangoHasta.value = "";
+
+        if (vistaActual === "hoy") {
+            actualizarVistaHoy();
+        }
+    });
 
 
 
@@ -1172,7 +1218,7 @@ function obtenerDiferenciaTiempo(inicio, fin) {
 // =====================================================
 function obtenerProp(item, ...propiedades) {
     if (!item || typeof item !== "object") return null;
-    
+
     for (const prop of propiedades) {
         // Búsqueda directa
         if (item[prop] !== undefined && item[prop] !== null) {
@@ -1501,16 +1547,15 @@ function actualizarKPIs(data) {
 // =====================================================
 // 2. ACTUALIZAR KPIS HOY (ÚLTIMOS 30 DÍAS)
 // =====================================================
-function actualizarKPIsHoy(data) {
+function actualizarKPIsHoy(data, rango) {
     const datos = Array.isArray(data) ? data : [];
-    
+
+    const rangoActivo = rango || obtenerRangoHoyActivo();
+    const fechaInicioRango = rangoActivo.inicio;
+    const cantidadDias = rangoActivo.cantidadDias;
+
     let completadas = 0;
     let noRealizadas = 0;
-
-    const hoy = new Date();
-    const fechaLimite = new Date(hoy);
-    fechaLimite.setDate(fechaLimite.getDate() - 29);
-    fechaLimite.setHours(0, 0, 0, 0);
 
     const rguPorDia = {};
     const duracionPorDia = {};
@@ -1520,7 +1565,7 @@ function actualizarKPIsHoy(data) {
             ? obtenerFechaObjeto(item) 
             : (item.Fecha ? new Date(item.Fecha) : null);
             
-        if (!f || f < fechaLimite) return;
+        if (!f || f < fechaInicioRango) return;
 
         const estadoRaw = String(obtenerProp(item, "Estado", "estado") ?? "").trim().toLowerCase();
         const esCompletado = estadoRaw === "completado" || estadoRaw === "completada";
@@ -1564,9 +1609,9 @@ function actualizarKPIsHoy(data) {
     const valoresRGU = [];
     const valoresDuracion = [];
 
-    for (let i = 29; i >= 0; i--) {
-        const fecha = new Date(hoy);
-        fecha.setDate(fecha.getDate() - i);
+    for (let i = 0; i < cantidadDias; i++) {
+        const fecha = new Date(fechaInicioRango);
+        fecha.setDate(fecha.getDate() + i);
         const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
 
         // RGU del día
@@ -1591,12 +1636,12 @@ function actualizarKPIsHoy(data) {
     const total = completadas + noRealizadas;
     const efectividad = total > 0 ? (completadas / total) * 100 : 0;
 
-    const sumaRGU30 = valoresRGU.reduce((acc, val) => acc + val, 0);
-    const rguPromedio = sumaRGU30 / 30;
+    const sumaRGU = valoresRGU.reduce((acc, val) => acc + val, 0);
+    const rguPromedio = cantidadDias > 0 ? sumaRGU / cantidadDias : 0;
 
-    // Promedio de duración sobre los 30 días completos (cuenta los 0)
-    const sumaDuracion30 = valoresDuracion.reduce((acc, val) => acc + val, 0);
-    const duracionPromedio = Math.round(sumaDuracion30 / 30);
+    // Promedio de duración sobre TODOS los días del rango (cuenta los 0)
+    const sumaDuracion = valoresDuracion.reduce((acc, val) => acc + val, 0);
+    const duracionPromedio = cantidadDias > 0 ? Math.round(sumaDuracion / cantidadDias) : 0;
 
     const horas = Math.floor(duracionPromedio / 60);
     const minutos = duracionPromedio % 60;
@@ -1691,8 +1736,8 @@ function actualizarKPIsAltas(data) {
         valoresRGU.push(Number(promedioDia.toFixed(1)));
     }
 
-    let rguPromedio = valoresRGU.length > 0 
-        ? valoresRGU.reduce((acc, val) => acc + val, 0) / valoresRGU.length 
+    let rguPromedio = valoresRGU.length > 0
+        ? valoresRGU.reduce((acc, val) => acc + val, 0) / valoresRGU.length
         : 0;
 
     const total = completadas + noRealizadas;
@@ -1722,8 +1767,8 @@ function actualizarKPIsAltas(data) {
 // =====================================================
 function actualizarKPIsHistorico(data) {
     const datos = Array.isArray(data) ? data : [];
-    const listaMeses = (typeof ordenMeses !== "undefined" && Array.isArray(ordenMeses)) 
-        ? ordenMeses 
+    const listaMeses = (typeof ordenMeses !== "undefined" && Array.isArray(ordenMeses))
+        ? ordenMeses
         : MESES_DEFAULT;
 
     let completadas = 0;
@@ -1734,8 +1779,8 @@ function actualizarKPIsHistorico(data) {
 
     // NIVEL 1: Agrupación diaria por técnico
     datos.forEach(item => {
-        const fecha = typeof obtenerFechaObjeto === "function" 
-            ? obtenerFechaObjeto(item) 
+        const fecha = typeof obtenerFechaObjeto === "function"
+            ? obtenerFechaObjeto(item)
             : (item.Fecha ? new Date(item.Fecha) : null);
 
         if (!fecha || isNaN(fecha.getTime())) return;
@@ -1772,8 +1817,8 @@ function actualizarKPIsHistorico(data) {
             const inicio = item.Inicio ?? item.Hora_Inicio;
             const fin = item.Fin ?? item.Hora_Fin;
 
-            let diferencia = typeof calcularDiferenciaMinutos === "function" 
-                ? calcularDiferenciaMinutos(inicio, fin) 
+            let diferencia = typeof calcularDiferenciaMinutos === "function"
+                ? calcularDiferenciaMinutos(inicio, fin)
                 : obtenerDiferenciaTiempo(inicio, fin);
 
             if (diferencia === null || diferencia < 0) {
@@ -1843,8 +1888,8 @@ function actualizarKPIsHistorico(data) {
 
     // NIVEL HISTÓRICO: Promedio final de los meses válidos
     const duracionValidos = promediosMensualesDuracion.filter(v => v !== null && v !== undefined);
-    const duracionPromedio = duracionValidos.length > 0 
-        ? Math.round(duracionValidos.reduce((s, v) => s + v, 0) / duracionValidos.length) 
+    const duracionPromedio = duracionValidos.length > 0
+        ? Math.round(duracionValidos.reduce((s, v) => s + v, 0) / duracionValidos.length)
         : 0;
 
     const total = completadas + noRealizadas;
@@ -4048,18 +4093,44 @@ function cambiarVista(vista, btnElement) {
     }
 
 }
-
-function obtenerDatosUltimosDias(data, cantidadDias = 30) {
+// ==========================================
+// RANGO ACTIVO DE LA VISTA HOY
+// Si el usuario eligió Desde/Hasta se usa ese
+// rango; si no, por defecto son los últimos
+// 30 días terminando hoy.
+// ==========================================
+function obtenerRangoHoyActivo() {
 
     const hoy = new Date();
-
     hoy.setHours(0, 0, 0, 0);
 
-    const fechaInicio = new Date(hoy);
+    if (rangoFechasHoy.desde && rangoFechasHoy.hasta) {
 
-    fechaInicio.setDate(
-        fechaInicio.getDate() - (cantidadDias - 1)
-    );
+        let inicio = new Date(rangoFechasHoy.desde);
+        inicio.setHours(0, 0, 0, 0);
+
+        let fin = new Date(rangoFechasHoy.hasta);
+        fin.setHours(0, 0, 0, 0);
+
+        // Por si el usuario elige "Hasta" antes que "Desde"
+        if (inicio > fin) {
+            [inicio, fin] = [fin, inicio];
+        }
+
+        const cantidadDias =
+            Math.round((fin - inicio) / 86400000) + 1;
+
+        return { inicio, fin, cantidadDias };
+    }
+
+    // Por defecto: últimos 30 días terminando hoy
+    const inicio = new Date(hoy);
+    inicio.setDate(inicio.getDate() - 29);
+
+    return { inicio, fin: hoy, cantidadDias: 30 };
+}
+
+function obtenerDatosEnRango(data, fechaInicio, fechaFin) {
 
     return data.filter(item => {
 
@@ -4075,7 +4146,7 @@ function obtenerDatosUltimosDias(data, cantidadDias = 30) {
 
         return (
             fechaItem >= fechaInicio &&
-            fechaItem <= hoy
+            fechaItem <= fechaFin
         );
     });
 }
@@ -4094,15 +4165,18 @@ function actualizarVistaHoy() {
         datosFiltrados.length
     );
 
-    // Últimos 30 días
+    // Rango activo: personalizado (Desde/Hasta) o últimos 30 días
+    const rango = obtenerRangoHoyActivo();
+
     datosVistaHoy =
-        obtenerDatosUltimosDias(
+        obtenerDatosEnRango(
             datosFiltrados,
-            30
+            rango.inicio,
+            rango.fin
         );
 
     console.log(
-        "🔵 Datos últimos 30 días:",
+        `🔵 Datos en rango (${rango.cantidadDias} días):`,
         datosVistaHoy.length
     );
 
@@ -4112,7 +4186,8 @@ function actualizarVistaHoy() {
     // =====================================================
 
     actualizarKPIsHoy(
-        datosVistaHoy
+        datosVistaHoy,
+        rango
     );
 
 
@@ -4121,15 +4196,18 @@ function actualizarVistaHoy() {
     // =====================================================
 
     crearGraficoHoyProduccion(
-        datosVistaHoy
+        datosVistaHoy,
+        rango
     );
 
     crearGraficoHoyRGU(
-        datosVistaHoy
+        datosVistaHoy,
+        rango
     );
 
     crearGraficoHoyDuracion(
-        datosVistaHoy
+        datosVistaHoy,
+        rango
     );
 }
 
@@ -4719,21 +4797,23 @@ function actualizarKPIsVista(data) {
 // ==========================================
 // 3 Graficos diarios (Global)
 // ==========================================
-function crearGraficoHoyProduccion(data) {
+function crearGraficoHoyProduccion(data, rango) {
 
     const labels = [];
     const completados = [];
     const noRealizadas = [];
     const porcentajes = [];
 
-    const hoy = new Date();
+    const rangoActivo = rango || obtenerRangoHoyActivo();
+    const fechaInicioRango = rangoActivo.inicio;
+    const cantidadDias = rangoActivo.cantidadDias;
 
-    for (let i = 29; i >= 0; i--) {
+    for (let i = 0; i < cantidadDias; i++) {
 
-        const fecha = new Date(hoy);
+        const fecha = new Date(fechaInicioRango);
 
         fecha.setDate(
-            fecha.getDate() - i
+            fecha.getDate() + i
         );
 
         fecha.setHours(0, 0, 0, 0);
@@ -4806,7 +4886,6 @@ function crearGraficoHoyProduccion(data) {
     if (chartHoy1Instance) {
         chartHoy1Instance.destroy();
     }
-    const diasMostrar = 30;
 
     chartHoy1Instance =
         new Chart(
@@ -4916,7 +4995,7 @@ function crearGraficoHoyProduccion(data) {
         }, 100);
 }
 
-function crearGraficoHoyRGU(data) {
+function crearGraficoHoyRGU(data, rango) {
 
     const labels = [];
     const valores = [];
@@ -4967,30 +5046,21 @@ function crearGraficoHoyRGU(data) {
 
 
     // =====================================================
-    // HOY
+    // RANGO ACTIVO
     // =====================================================
 
-    const hoy = new Date();
-
-    hoy.setHours(
-        0,
-        0,
-        0,
-        0
-    );
+    const rangoActivo = rango || obtenerRangoHoyActivo();
+    const fechaInicioRango = rangoActivo.inicio;
+    const cantidadDias = rangoActivo.cantidadDias;
 
 
-    // =====================================================
-    // ÚLTIMOS 30 DÍAS
-    // =====================================================
-
-    for (let i = 29; i >= 0; i--) {
+    for (let i = 0; i < cantidadDias; i++) {
 
         const fecha =
-            new Date(hoy);
+            new Date(fechaInicioRango);
 
         fecha.setDate(
-            fecha.getDate() - i
+            fecha.getDate() + i
         );
 
 
@@ -5432,19 +5502,21 @@ function crearGraficoHoyRGU(data) {
 
 }
 
-function crearGraficoHoyDuracion(data) {
+function crearGraficoHoyDuracion(data, rango) {
 
     const labels = [];
     const valores = [];
 
-    const hoy = new Date();
+    const rangoActivo = rango || obtenerRangoHoyActivo();
+    const fechaInicioRango = rangoActivo.inicio;
+    const cantidadDias = rangoActivo.cantidadDias;
 
-    for (let i = 29; i >= 0; i--) {
+    for (let i = 0; i < cantidadDias; i++) {
 
-        const fecha = new Date(hoy);
+        const fecha = new Date(fechaInicioRango);
 
         fecha.setDate(
-            fecha.getDate() - i
+            fecha.getDate() + i
         );
 
         fecha.setHours(0, 0, 0, 0);
@@ -5537,7 +5609,6 @@ function crearGraficoHoyDuracion(data) {
     if (chartHoy3Instance) {
         chartHoy3Instance.destroy();
     }
-    const diasMostrar = 30;
 
     chartHoy3Instance =
         new Chart(
