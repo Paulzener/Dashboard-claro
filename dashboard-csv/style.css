@@ -214,50 +214,6 @@ button:hover {
     height: 100% !important;
 }
 
-
-/* =========================
-   TABLA
-========================= */
-
-.table-section {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.table-wrapper {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-}
-
-th {
-    background: #172554;
-    color: white;
-    padding: 12px;
-    text-align: left;
-}
-
-td {
-    padding: 10px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-tr:hover {
-    background: #f8fafc;
-}
-
-#rowCount {
-    margin-top: 15px;
-    color: #64748b;
-}
-
-
 /* =========================
    UTILIDADES
 ========================= */
@@ -728,24 +684,6 @@ tr:hover {
     #viewHoy .grid-graficos-diarios {
         grid-template-columns: 1fr;
     }
-}
-.table-wrapper {
-    max-height: 500px; /* Define la altura máxima para activar el scroll vertical */
-    max-width: 100%;   /* Asegura que no sobrepase la pantalla */
-    overflow: auto;    /* Agrega barras horizontal y vertical según sea necesario */
-}
-
-/* Evita que el texto de las celdas se colapse, forzando el scroll horizontal */
-.table {
-    width: 100%;
-    white-space: nowrap; 
-}
-
-/* Opcional: Mantiene los encabezados fijos en la parte superior al bajar */
-.table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
 }
 
 .chart-scroll {

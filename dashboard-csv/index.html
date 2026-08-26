@@ -248,8 +248,7 @@
                 onclick="cambiarVista('altas', this)">Diarios Alt/ Tras/ Mig</button>
             <button class="tab-btn" style="margin-top: 1rem; margin-right: 5px;"
                 onclick="cambiarVista('historico', this)">Histórico</button>
-            <button class="tab-btn" style="margin-top: 1rem; margin-right: 5px;"
-                onclick="cambiarVista('detalles', this)">Detalles</button>
+            
         </div>
 
         <!-- VISTA 1: HOY -->
@@ -296,7 +295,7 @@
 
         </div>
 
-        <!-- Vista Diarios (Altas) -->
+        <!-- Vista 2 Diarios (Altas) -->
         <div id="viewAltas" class="tab-view hidden" style="padding-top: 2rem;">
 
             <h1>Indicadores Diarios (Alta / Traslado / Migración)</h1>
@@ -339,7 +338,7 @@
             </div>
 
         </div>
-        <!-- VISTA 2: HISTÓRICO (Mueve aquí tus gráficos actuales) -->
+        <!-- VISTA 3: HISTÓRICO (Mueve aquí tus gráficos actuales) -->
         <div id="viewHistorico" class="tab-view hidden" style="padding-top: 2rem;">
             <h1>Indicadores Históricos (Mes)</h1>
             <!-- CONTENEDOR CAPTURABLE (KPIs + GRÁFICOS CON TÍTULOS) -->
@@ -373,49 +372,6 @@
                 </div>
 
             </div>
-        </div>
-
-        <!-- VISTA 3: DETALLES (Mueve aquí tu tabla actual) -->
-        <div id="viewDetalles" class="tab-view hidden" style="padding-top: 2.5rem;">
-            <!-- TABLA -->
-            <h1>Detalle de actividades</h1>
-            <section id="tableSection" class="table-section hidden">
-
-                <div class="table-wrapper">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Técnico</th>
-                                <th>Supervisor</th>
-                                <th>RUT / Bucket</th>
-                                <th>Tipo Actividad</th>
-                                <th>Orden Trabajo</th>
-                                <th>Zona</th>
-                                <th>Zona Trabajo</th>
-                                <th>Inicio</th>
-                                <th>Fin</th>
-                                <th>Estado</th>
-                                <th>Fecha</th>
-                                <th>RGU</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dataTable">
-                            <!-- Se llena con JavaScript -->
-                        </tbody>
-                    </table>
-
-                </div>
-                <div class="selector-limite">
-                    <label for="limiteSelect">Mostrar registros: </label>
-                    <select id="limiteSelect" onchange="cambiarLimite(this.value)">
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="500">500</option>
-                        <option value="todos">Todos</option>
-                    </select>
-                </div>
-                <div id="rowCount"></div>
-            </section>
         </div>
     </main>
 

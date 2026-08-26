@@ -795,10 +795,6 @@ function mostrarSecciones() {
     document
         .getElementById("charts")
         ?.classList.remove("hidden");
-
-    document
-        .getElementById("tableSection")
-        ?.classList.remove("hidden");
 }
 
 // ==========================================
@@ -1160,13 +1156,6 @@ function actualizarDashboard() {
         return;
     }
 
-    // Si estamos en DETALLES
-    if (vistaActual === "detalles") {
-
-        renderizarTabla();
-
-        return;
-    }
 }
 
 // ==========================================
@@ -1951,50 +1940,6 @@ function cambiarLimite(valor) {
     renderizarTabla();
 }
 
-function renderizarTabla() {
-    const tbody = document.getElementById("dataTable");
-
-    if (!tbody) return;
-
-    tbody.innerHTML = "";
-
-    // APLICAR LÍMITE: Si es 'todos' muestra filteredData completo, de lo contrario recorta los primeros N registros
-    const limiteData = limiteRegistros === 'todos'
-        ? filteredData
-        : filteredData.slice(0, limiteRegistros);
-
-    limiteData.forEach(item => {
-        const tecnico = String(item.Tecnico ?? "-").trim();
-        const supervisor = String(item.Supervisor ?? "-").trim();
-
-        const inicio = item.Inicio ?? item.Hora_Inicio;
-        const fin = item.Fin ?? item.Hora_Fin;
-
-        const tr = document.createElement("tr");
-
-        tr.innerHTML = `
-            <td>${escapeHTML(tecnico)}</td>
-            <td>${escapeHTML(supervisor)}</td>
-            <td>${escapeHTML(item.Rut_o_Bucket ?? "-")}</td>
-            <td>${escapeHTML(item.Tipo_de_Actividad ?? "-")}</td>
-            <td>${escapeHTML(item.Orden_de_Trabajo ?? "-")}</td>
-            <td>${escapeHTML(item.Zona ?? "-")}</td>
-            <td>${escapeHTML(item.Zona_de_trabajo ?? "-")}</td>
-            <td>${formatearHoraRedondeada(inicio)}</td>
-            <td>${formatearHoraRedondeada(fin)}</td>
-            <td>${escapeHTML(item.Estado ?? "-")}</td>
-            <td>${formatearFecha(item)}</td>
-            <td>${escapeHTML(item.RGU ?? "0")}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    const rowCount = document.getElementById("rowCount");
-
-    if (rowCount) {
-        rowCount.innerText = `Mostrando ${limiteData.length} de ${filteredData.length} registros`;
-    }
-}
 
 // ==========================================
 // GRÁFICOS
@@ -3902,18 +3847,6 @@ function cambiarVista(vista, btnElement) {
     vistaActual = vista;
 
     // =====================================================
-    // MOSTRAR / OCULTAR KPIs
-    // =====================================================
-
-    document
-        .getElementById("kpis")
-        ?.classList.toggle(
-            "hidden",
-            vista === "detalles"
-        );
-
-
-    // =====================================================
     // BOTÓN ACTIVO
     // =====================================================
 
@@ -4037,58 +3970,6 @@ function cambiarVista(vista, btnElement) {
         actualizarGraficos(
             datosHistoricos
         );
-
-    }
-
-
-    // =====================================================
-    // VISTA DETALLES
-    // =====================================================
-
-    else if (vista === "detalles") {
-
-        const viewDetalles =
-            document.getElementById(
-                "viewDetalles"
-            );
-
-        viewDetalles
-            ?.classList.remove("hidden");
-
-
-        const tbody =
-            document.querySelector(
-                "#viewDetalles table tbody"
-            );
-
-
-        if (tbody) {
-
-            tbody.innerHTML = `
-                <tr>
-                    <td
-                        colspan="11"
-                        style="
-                            text-align:center;
-                            padding:20px;
-                        "
-                    >
-                        Cargando datos...
-                    </td>
-                </tr>
-            `;
-
-        }
-
-
-        setTimeout(() => {
-
-            filteredData =
-                obtenerDatosFiltrados();
-
-            renderizarTabla();
-
-        }, 50);
 
     }
 
