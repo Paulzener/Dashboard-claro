@@ -3950,9 +3950,13 @@ function obtenerDatosEnRango(datos, fechaInicio, fechaFin) {
     fin.setHours(23, 59, 59, 999);
 
     return datos.filter(item => {
-        // ⚠️ CAMBIA "item.Fecha" por el nombre exacto de la columna de fecha en tu base de datos o JSON
-        const fechaItem = new Date(item.Fecha); 
-        
+        // Usamos el mismo parser que el resto de la app (hora local),
+        // en vez de new Date(item.Fecha), que interpreta strings
+        // "YYYY-MM-DD" como UTC y desfasa el primer día del rango.
+        const fechaItem = obtenerFechaObjeto(item);
+
+        if (!fechaItem) return false;
+
         // Comparamos
         return fechaItem >= inicio && fechaItem <= fin;
     });
