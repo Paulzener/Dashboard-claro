@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 1. EVENTO APLICAR TODOS LOS FILTROS
     btnApplyAll?.addEventListener("click", () => {
-        
+
         // Si hay fechas seleccionadas, las capturamos y guardamos
         if (inputRangoDesde?.value && inputRangoHasta?.value) {
             const [anoD, mesD, diaD] = inputRangoDesde.value.split("-").map(Number);
@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Se asignan las mismas fechas para ambas vistas para mantener sincronía
             rangoFechasHoy.desde = fechaInicio;
             rangoFechasHoy.hasta = fechaFin;
-            
+
             rangoFechasAltas.desde = fechaInicio;
             rangoFechasAltas.hasta = fechaFin;
         } else if (inputRangoDesde?.value || inputRangoHasta?.value) {
@@ -114,7 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. EVENTO LIMPIAR FILTROS
     btnClearAll?.addEventListener("click", () => {
-        
+
         // Limpiamos los campos visuales de fecha en el HTML
         if (inputRangoDesde) inputRangoDesde.value = "";
         if (inputRangoHasta) inputRangoHasta.value = "";
@@ -122,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Reiniciamos las variables en memoria a null
         rangoFechasHoy.desde = null;
         rangoFechasHoy.hasta = null;
-        
+
         rangoFechasAltas.desde = null;
         rangoFechasAltas.hasta = null;
 
@@ -1487,34 +1487,31 @@ function actualizarKPIsHoy(data, rango) {
         fecha.setDate(fecha.getDate() + i);
         const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
 
-        // RGU del día
+        // RGU del día — solo se cuenta si hubo técnicos con datos ese día
         const tecnicosRGU = rguPorDia[key] || {};
         const listaTecnicos = Object.keys(tecnicosRGU);
-        let promedioRGUDia = 0;
 
         if (listaTecnicos.length > 0) {
             const sumaRGU = listaTecnicos.reduce((acc, tec) => acc + tecnicosRGU[tec], 0);
-            promedioRGUDia = Number((sumaRGU / listaTecnicos.length).toFixed(1));
+            valoresRGU.push(Number((sumaRGU / listaTecnicos.length).toFixed(1)));
         }
-        valoresRGU.push(promedioRGUDia);
 
-        // Duración del día (0 si no hubo actividad completada ese día)
+        // Duración del día — solo se cuenta si hubo actividad completada ese día
         const diaDuracion = duracionPorDia[key];
-        const promedioDuracionDia = diaDuracion && diaDuracion.cantidad > 0
-            ? diaDuracion.suma / diaDuracion.cantidad
-            : 0;
-        valoresDuracion.push(promedioDuracionDia);
+        if (diaDuracion && diaDuracion.cantidad > 0) {
+            valoresDuracion.push(diaDuracion.suma / diaDuracion.cantidad);
+        }
     }
 
     const total = completadas + noRealizadas;
     const efectividad = total > 0 ? (completadas / total) * 100 : 0;
 
+    // Promedios solo sobre los días que tuvieron datos (los días vacíos no cuentan)
     const sumaRGU = valoresRGU.reduce((acc, val) => acc + val, 0);
-    const rguPromedio = cantidadDias > 0 ? sumaRGU / cantidadDias : 0;
+    const rguPromedio = valoresRGU.length > 0 ? sumaRGU / valoresRGU.length : 0;
 
-    // Promedio de duración sobre TODOS los días del rango (cuenta los 0)
     const sumaDuracion = valoresDuracion.reduce((acc, val) => acc + val, 0);
-    const duracionPromedio = cantidadDias > 0 ? Math.round(sumaDuracion / cantidadDias) : 0;
+    const duracionPromedio = valoresDuracion.length > 0 ? Math.round(sumaDuracion / valoresDuracion.length) : 0;
 
     const horas = Math.floor(duracionPromedio / 60);
     const minutos = duracionPromedio % 60;
@@ -1610,29 +1607,29 @@ function actualizarKPIsAltas(data, rango) {
         const tecnicosDia = rguPorDia[key];
         const listaTecnicos = Object.keys(tecnicosDia);
 
-        let promedioDia = 0;
+        // Solo se cuenta si hubo técnicos con datos ese día
         if (listaTecnicos.length > 0) {
             const suma = listaTecnicos.reduce((acc, tec) => acc + tecnicosDia[tec], 0);
-            promedioDia = suma / listaTecnicos.length;
+            valoresRGU.push(Number((suma / listaTecnicos.length).toFixed(1)));
         }
-        valoresRGU.push(Number(promedioDia.toFixed(1)));
 
+        // Solo se cuenta si hubo actividad completada ese día
         const diaDuracion = duracionPorDia[key];
-        const promedioDuracionDia = diaDuracion.cantidad > 0
-            ? diaDuracion.suma / diaDuracion.cantidad
-            : 0;
-        valoresDuracion.push(promedioDuracionDia);
+        if (diaDuracion.cantidad > 0) {
+            valoresDuracion.push(diaDuracion.suma / diaDuracion.cantidad);
+        }
     });
 
-    const rguPromedio = cantidadDias > 0
-        ? valoresRGU.reduce((acc, val) => acc + val, 0) / cantidadDias
+    // Promedios solo sobre los días que tuvieron datos (los días vacíos no cuentan)
+    const rguPromedio = valoresRGU.length > 0
+        ? valoresRGU.reduce((acc, val) => acc + val, 0) / valoresRGU.length
         : 0;
 
     const total = completadas + noRealizadas;
     const efectividad = total > 0 ? (completadas / total) * 100 : 0;
 
     const sumaDuracion = valoresDuracion.reduce((acc, val) => acc + val, 0);
-    const duracionPromedio = cantidadDias > 0 ? Math.round(sumaDuracion / cantidadDias) : 0;
+    const duracionPromedio = valoresDuracion.length > 0 ? Math.round(sumaDuracion / valoresDuracion.length) : 0;
 
     const horas = Math.floor(duracionPromedio / 60);
     const minutos = duracionPromedio % 60;
@@ -3744,9 +3741,9 @@ function convertirMinutosHHMM(minutos) {
 // ==========================================
 
 function actualizarVistaAltas() {
-    
+
     // 1. Usar los datos globales ya filtrados por los multiselects (Actividad, Zona, etc.)
-    const datosFiltrados = filteredData; 
+    const datosFiltrados = filteredData;
 
     // 2. Obtener el rango de fechas activo para la vista altas
     const rango = obtenerRangoAltasActivo();
@@ -3945,7 +3942,7 @@ function obtenerDatosEnRango(datos, fechaInicio, fechaFin) {
     // Convertimos los inputs a objetos Date
     const inicio = new Date(fechaInicio);
     const fin = new Date(fechaFin);
-    
+
     // Ajustamos el final para que incluya hasta el último minuto de ese día (opcional pero recomendado)
     fin.setHours(23, 59, 59, 999);
 
@@ -4679,9 +4676,9 @@ function crearGraficoHoyProduccion(data, rango) {
     if (!canvas) return;
 
     // --- PEGA ESTO AQUÍ ---
-    const minWidth1 = labels.length * 55; 
-    canvas.parentElement.style.width = '100%'; 
-    canvas.parentElement.style.minWidth = minWidth1 + 'px'; 
+    const minWidth1 = labels.length * 55;
+    canvas.parentElement.style.width = '100%';
+    canvas.parentElement.style.minWidth = minWidth1 + 'px';
     // ----------------------
 
     if (chartHoy1Instance) {
@@ -5031,13 +5028,20 @@ function crearGraficoHoyRGU(data, rango) {
         }
 
 
-        // =================================================
+                // =================================================
         // GUARDAR PROMEDIO DEL DÍA
+        // Si no hubo técnicos con datos ese día, no se
+        // cuenta para el promedio del KPI (pero el gráfico
+        // sigue dibujando el punto en 0, igual que los demás)
         // =================================================
 
-        promediosDiarios.push(
-            promedio
-        );
+        if (listaTecnicos.length > 0) {
+
+            promediosDiarios.push(
+                promedio
+            );
+
+        }
 
 
         // =================================================
@@ -5122,9 +5126,9 @@ function crearGraficoHoyRGU(data, rango) {
     }
 
     // --- PEGA ESTO AQUÍ ---
-    const minWidth2 = labels.length * 55; 
-    canvas.parentElement.style.width = '100%'; 
-    canvas.parentElement.style.minWidth = minWidth2 + 'px'; 
+    const minWidth2 = labels.length * 55;
+    canvas.parentElement.style.width = '100%';
+    canvas.parentElement.style.minWidth = minWidth2 + 'px';
     // ----------------------
 
     if (typeof chartHoy2Instance !== "undefined" && chartHoy2Instance) {
@@ -5405,9 +5409,9 @@ function crearGraficoHoyDuracion(data, rango) {
     if (!canvas) return;
 
     // --- PEGA ESTO AQUÍ ---
-    const minWidth3 = labels.length * 55; 
-    canvas.parentElement.style.width = '100%'; 
-    canvas.parentElement.style.minWidth = minWidth3 + 'px'; 
+    const minWidth3 = labels.length * 55;
+    canvas.parentElement.style.width = '100%';
+    canvas.parentElement.style.minWidth = minWidth3 + 'px';
     // ----------------------
 
     if (chartHoy3Instance) {
@@ -5725,9 +5729,9 @@ function crearGraficoHoyRGUAltas(data, rango) {
     if (!canvas) return;
 
     // NUEVA LÓGICA: Usamos minWidth en lugar de width
-    const minWidth2 = labels.length * 55; 
-    canvas.parentElement.style.width = '100%'; 
-    canvas.parentElement.style.minWidth = minWidth2 + 'px'; 
+    const minWidth2 = labels.length * 55;
+    canvas.parentElement.style.width = '100%';
+    canvas.parentElement.style.minWidth = minWidth2 + 'px';
 
     if (window.chartHoyAltas2Instance) {
         window.chartHoyAltas2Instance.destroy();
@@ -5839,9 +5843,9 @@ function crearGraficoHoyDuracionAltas(data, rango) {
     if (!canvas) return;
 
     // NUEVA LÓGICA: Usamos minWidth en lugar de width
-    const minWidth3 = labels.length * 55; 
-    canvas.parentElement.style.width = '100%'; 
-    canvas.parentElement.style.minWidth = minWidth3 + 'px'; 
+    const minWidth3 = labels.length * 55;
+    canvas.parentElement.style.width = '100%';
+    canvas.parentElement.style.minWidth = minWidth3 + 'px';
 
     if (window.chartHoyAltas3Instance) {
         window.chartHoyAltas3Instance.destroy();
